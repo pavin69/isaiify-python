@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISAIIFY — Your Music. Your World.</title>
+    <!-- Google Fonts: Plus Jakarta Sans for Spotify look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- LEFT SIDEBAR -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo">
+                    <i class="fa-brands fa-spotify"></i>
+                </div>
+                <div class="brand-info">
+                    <span class="brand-name">ISAIIFY</span>
+                    <span class="brand-tagline">Your Music. Your World.</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" onclick="switchView('home')">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Home</span>
+                </button>
+                <button class="nav-item" onclick="focusSearch()">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <span>Search</span>
+                </button>
+                <button class="nav-item" onclick="switchView('library')">
+                    <i class="fa-solid fa-lines-leaning"></i>
+                    <span>Your Library</span>
+                </button>
+                <button class="nav-item" onclick="switchView('favorites')">
+                    <i class="fa-solid fa-heart" style="color: #1DB954;"></i>
+                    <span>Liked Songs</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-divider"></div>
+
+            <!-- UPLOAD MP3 SECTION -->
+            <div class="upload-box">
+                <input type="file" id="songFileInput" accept=".mp3,.wav,.m4a,.ogg" style="display:none;" onchange="handleSongUpload(event)">
+                <button class="btn-upload" onclick="document.getElementById('songFileInput').click()">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <span>+ Add Your MP3 Songs</span>
+                </button>
+            </div>
+
+            <div class="sidebar-divider"></div>
+
+            <div class="playlists-section">
+                <div class="playlists-header">
+                    <span>PLAYLISTS</span>
+                </div>
+                <ul class="playlist-list" id="playlistList">
+                    <li onclick="filterLanguage('ALL')">🌟 Handpicked Top Hits</li>
+                    <li onclick="filterLanguage('TAMIL')">🔥 Trending Tamil Beats</li>
+                    <li onclick="filterLanguage('ENGLISH')">🌍 Global English Pop</li>
+                    <li onclick="switchView('favorites')">❤️ My Favorites</li>
+                </ul>
+            </div>
+
+            <div class="sidebar-footer">
+                <span class="version-tag">ISAIIFY v1.0.0 (Python Edition)</span>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="main-content">
+            <!-- TOP BAR -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <div class="history-nav">
+                        <button class="nav-arrow" title="Back"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button class="nav-arrow" title="Forward"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="searchInput" placeholder="Search ANY song, artist or movie (e.g. Leo, Jailer, Weeknd)..." oninput="handleSearch(this.value)">
+                        <button id="clearSearchBtn" class="clear-search" onclick="clearSearch()"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <button class="btn-upload-top" onclick="document.getElementById('songFileInput').click()">
+                        <i class="fa-solid fa-plus"></i> Upload Song
+                    </button>
+                    <span class="user-pill">
+                        <i class="fa-regular fa-user"></i>
+                        <span>Isaiify Listener</span>
+                    </span>
+                </div>
+            </header>
+
+            <!-- SCROLLABLE BODY -->
+            <div class="content-scrollable" id="mainScroll">
+                <!-- GREETING & FILTERS -->
+                <section class="welcome-section">
+                    <div class="greeting-row">
+                        <div>
+                            <h1 class="greeting-text" id="greetingText">Good evening</h1>
+                            <p class="greeting-sub">Stream Tamil and English songs or upload your own favorite tracks</p>
+                        </div>
+                    </div>
+
+                    <!-- LANGUAGE FILTER CHIPS -->
+                    <div class="filter-chips">
+                        <button class="chip active" data-lang="ALL" onclick="filterLanguage('ALL')">All Songs</button>
+                        <button class="chip" data-lang="TAMIL" onclick="filterLanguage('TAMIL')">தமிழ் (Tamil)</button>
+                        <button class="chip" data-lang="ENGLISH" onclick="filterLanguage('ENGLISH')">English Hits</button>
+                    </div>
+                </section>
+
+                <!-- SEARCH RESULTS CONTAINER -->
+                <section id="searchResultsSection" class="content-section" style="display: none;">
+                    <div class="section-header">
+                        <h2>Search Results</h2>
+                        <span id="searchResultCount" class="sub-count"></span>
+                    </div>
+                    <!-- Cloud API Results Header -->
+                    <div id="onlineSearchHeader" style="margin-bottom: 12px; display: none;">
+                        <span style="font-size: 13px; color: #1DB954; font-weight: 700;">
+                            <i class="fa-solid fa-bolt"></i> Live Online Cloud Songs (Click any to stream directly!)
+                        </span>
+                    </div>
+                    <div class="cards-grid" id="searchResultsGrid"></div>
+                </section>
+
+                <!-- 1. TOP QUICK-ACCESS GRID (Spotify 6-card grid) -->
+                <section class="quick-access-section" id="quickAccessSection">
+                    <div class="quick-grid" id="quickAccessGrid">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </section>
+
+                <!-- 2. TRENDING TAMIL HITS -->
+                <section class="content-section" id="tamilSection">
+                    <div class="section-header">
+                        <div>
+                            <h2>Trending Tamil Hits 🔥</h2>
+                            <p class="section-desc">Anirudh, A.R. Rahman, Yuvan & the hottest Kollywood soundtracks</p>
+                        </div>
+                        <button class="btn-see-all" onclick="filterLanguage('TAMIL')">Show all</button>
+                    </div>
+                    <div class="cards-carousel" id="tamilCarousel">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </section>
+
+                <!-- 3. GLOBAL ENGLISH HITS -->
+                <section class="content-section" id="englishSection">
+                    <div class="section-header">
+                        <div>
+                            <h2>Global English Hits 🌍</h2>
+                            <p class="section-desc">The Weeknd, Taylor Swift, Ed Sheeran, Harry Styles & top chartbusters</p>
+                        </div>
+                        <button class="btn-see-all" onclick="filterLanguage('ENGLISH')">Show all</button>
+                    </div>
+                    <div class="cards-carousel" id="englishCarousel">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </section>
+
+                <!-- 4. POPULAR ARTISTS -->
+                <section class="content-section" id="artistsSection">
+                    <div class="section-header">
+                        <div>
+                            <h2>Popular Artists</h2>
+                            <p class="section-desc">Your favorite singers and composers</p>
+                        </div>
+                    </div>
+                    <div class="cards-carousel artists-carousel" id="artistsCarousel">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </section>
+
+                <!-- 5. FEATURED ALBUMS -->
+                <section class="content-section" id="albumsSection">
+                    <div class="section-header">
+                        <div>
+                            <h2>Featured Albums & Soundtracks</h2>
+                            <p class="section-desc">Blockbuster albums you can listen to from start to finish</p>
+                        </div>
+                    </div>
+                    <div class="cards-carousel" id="albumsCarousel">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </section>
+
+                <!-- 6. LIKED SONGS VIEW -->
+                <section class="content-section" id="favoritesSection" style="display: none;">
+                    <div class="section-header">
+                        <div>
+                            <h2>Your Liked Songs ❤️</h2>
+                            <p class="section-desc">Songs you have added to your favorites</p>
+                        </div>
+                    </div>
+                    <div class="cards-grid" id="favoritesGrid"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- BOTTOM FIXED MUSIC PLAYER -->
+    <footer class="player-bar">
+        <!-- LEFT: TRACK INFO -->
+        <div class="player-left">
+            <img id="playerArtwork" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100" alt="Album Art" class="player-art">
+            <div class="player-meta">
+                <span id="playerTitle" class="player-title">Naa Ready</span>
+                <span id="playerArtist" class="player-artist">Anirudh Ravichander</span>
+            </div>
+            <button id="playerFavoriteBtn" class="btn-icon" title="Save to Favorites" onclick="toggleCurrentFavorite()">
+                <i class="fa-regular fa-heart"></i>
+            </button>
+        </div>
+
+        <!-- CENTER: CONTROLS & SEEKBAR -->
+        <div class="player-center">
+            <div class="player-controls">
+                <button id="shuffleBtn" class="btn-icon-control" title="Shuffle" onclick="toggleShuffle()">
+                    <i class="fa-solid fa-shuffle"></i>
+                </button>
+                <button id="prevBtn" class="btn-icon-control" title="Previous" onclick="playPrevious()">
+                    <i class="fa-solid fa-backward-step"></i>
+                </button>
+                <button id="playPauseBtn" class="btn-play-pause" title="Play/Pause" onclick="togglePlayPause()">
+                    <i class="fa-solid fa-play"></i>
+                </button>
+                <button id="nextBtn" class="btn-icon-control" title="Next" onclick="playNext()">
+                    <i class="fa-solid fa-forward-step"></i>
+                </button>
+                <button id="repeatBtn" class="btn-icon-control" title="Repeat" onclick="toggleRepeat()">
+                    <i class="fa-solid fa-repeat"></i>
+                </button>
+            </div>
+
+            <div class="playback-bar">
+                <span id="currentTime" class="time-label">0:00</span>
+                <div class="progress-container" id="progressContainer" onclick="seekAudio(event)">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <span id="totalTime" class="time-label">0:15</span>
+            </div>
+        </div>
+
+        <!-- RIGHT: VOLUME & EXTRAS -->
+        <div class="player-right">
+            <button id="muteBtn" class="btn-icon" title="Mute" onclick="toggleMute()">
+                <i class="fa-solid fa-volume-high"></i>
+            </button>
+            <div class="volume-container">
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.8" oninput="changeVolume(this.value)">
+            </div>
+            <button class="btn-icon" title="Language Badge">
+                <span id="playerLangBadge" class="mini-lang-badge">TAMIL</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Hidden HTML5 Audio Element -->
+    <audio id="audioPlayer" preload="auto"></audio>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/static/js/player.js"></script>
+</body>
+</html>
