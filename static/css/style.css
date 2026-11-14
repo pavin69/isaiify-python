@@ -841,3 +841,449 @@ body {
     border-color: #1DB954;
     color: #1DB954;
 }
+
+/* SIDEBAR BADGE */
+.sidebar-badge {
+    background-color: var(--accent-green);
+    color: #000000;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 10px;
+    margin-left: auto;
+}
+
+/* OFFLINE STATUS BANNER */
+.offline-banner {
+    background: linear-gradient(90deg, #b91d47, #d9534f);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    position: relative;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* RECOMMENDATIONS SECTION */
+.rec-reason-badge {
+    display: inline-block;
+    background-color: rgba(29, 185, 84, 0.15);
+    color: #1ed760;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 4px;
+    margin-top: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* CARD ACTION BUTTONS (LIKE & DOWNLOAD) */
+.card-actions-hover {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 4;
+}
+
+.music-card:hover .card-actions-hover {
+    opacity: 1;
+}
+
+.card-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.75);
+    border: none;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.card-action-btn:hover {
+    transform: scale(1.1);
+    background-color: #000000;
+    color: var(--accent-green);
+}
+
+.card-action-btn.liked {
+    color: var(--accent-green);
+}
+
+.card-action-btn.downloaded {
+    color: var(--accent-green);
+}
+
+/* ALBUM DETAIL PAGE VIEW */
+.view-back-bar {
+    padding: 12px 24px 0;
+}
+
+.btn-back {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.btn-back:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--accent-green);
+}
+
+.album-hero {
+    display: flex;
+    align-items: flex-end;
+    gap: 28px;
+    padding: 24px;
+    background: linear-gradient(180deg, rgba(40, 40, 40, 0.8) 0%, rgba(18, 18, 18, 0.95) 100%);
+    border-radius: 12px;
+    margin: 12px 24px;
+}
+
+.album-hero-art {
+    width: 192px;
+    height: 192px;
+    border-radius: 8px;
+    object-fit: cover;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    flex-shrink: 0;
+}
+
+.album-hero-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.album-hero-type {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.album-hero-title {
+    font-size: 38px;
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--text-primary);
+    margin: 4px 0 8px;
+}
+
+.album-hero-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.album-hero-meta .artist-highlight {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.album-hero-meta .meta-dot {
+    opacity: 0.5;
+}
+
+.album-genre-pill {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.album-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 24px 16px;
+}
+
+.btn-play-album {
+    background-color: var(--accent-green);
+    color: #000000;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s;
+}
+
+.btn-play-album:hover {
+    background-color: var(--accent-green-hover);
+    transform: scale(1.04);
+}
+
+.btn-icon-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--text-primary);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-icon-circle:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: var(--accent-green);
+}
+
+/* TRACKLIST TABLE */
+.album-tracklist-container {
+    padding: 0 24px 32px;
+}
+
+.tracklist-header-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 180px 80px 100px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--divider);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tracklist-rows {
+    display: flex;
+    flex-direction: column;
+    margin-top: 6px;
+}
+
+.track-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 180px 80px 100px;
+    align-items: center;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.track-row:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.track-row.active {
+    color: var(--accent-green);
+}
+
+.track-row.active .track-main-title {
+    color: var(--accent-green);
+}
+
+.col-num {
+    display: flex;
+    align-items: center;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+}
+
+.track-row:hover .track-num-text {
+    display: none;
+}
+
+.track-row .track-play-icon {
+    display: none;
+    color: var(--text-primary);
+}
+
+.track-row:hover .track-play-icon {
+    display: inline-block;
+}
+
+.col-title {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.track-main-title {
+    color: var(--text-primary);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-main-artist {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.col-genre {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.col-time {
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.col-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-track-action {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-track-action:hover {
+    color: var(--text-primary);
+    transform: scale(1.15);
+}
+
+.btn-track-action.liked {
+    color: var(--accent-green);
+}
+
+.btn-track-action.downloaded {
+    color: var(--accent-green);
+}
+
+.btn-track-action.downloading {
+    color: #f39c12;
+}
+
+.btn-track-action.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* DOWNLOADS VIEW STYLES */
+.downloads-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.downloads-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.storage-tag {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-clear-downloads {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ff5252;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn-clear-downloads:hover {
+    background: rgba(255, 82, 82, 0.15);
+    border-color: #ff5252;
+}
+
+.offline-info-banner {
+    background: rgba(29, 185, 84, 0.1);
+    border: 1px solid rgba(29, 185, 84, 0.3);
+    color: #e0e0e0;
+    font-size: 13px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.offline-info-banner i {
+    color: var(--accent-green);
+}
+
+.btn-remove-download {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 4px;
+    transition: color 0.2s;
+}
+
+.btn-remove-download:hover {
+    color: #ff5252;
+}
+

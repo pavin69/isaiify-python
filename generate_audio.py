@@ -48,15 +48,19 @@ if __name__ == "__main__":
     # Notes in Hz (C4=261.6, D4=293.6, E4=329.6, F4=349.2, G4=392.0, A4=440.0, B4=493.8, C5=523.2)
     # Tamil Songs
     create_song_audio("naa_ready.wav", [220, 220, 261, 293, 330, 293, 261, 220], bpm=135, duration_seconds=15)
+    create_song_audio("badass.wav", [164, 196, 220, 246, 293, 246, 220, 196], bpm=140, duration_seconds=15)
     create_song_audio("hukum.wav", [164, 164, 196, 220, 246, 220, 196, 164], bpm=130, duration_seconds=15)
+    create_song_audio("kavalaa.wav", [293, 330, 392, 440, 523, 440, 392, 330], bpm=128, duration_seconds=15)
     create_song_audio("marakkuma_nenjam.wav", [261, 293, 329, 392, 440, 392, 329, 293], bpm=90, duration_seconds=15)
     create_song_audio("arabic_kuthu.wav", [293, 330, 370, 440, 494, 440, 370, 330], bpm=140, duration_seconds=15)
     create_song_audio("adiye.wav", [330, 392, 440, 494, 523, 494, 440, 392], bpm=95, duration_seconds=15)
 
     # English Songs
     create_song_audio("blinding_lights.wav", [349, 349, 392, 440, 523, 440, 392, 349], bpm=171, duration_seconds=15)
+    create_song_audio("save_your_tears.wav", [261, 329, 392, 440, 523, 392, 329, 261], bpm=118, duration_seconds=15)
     create_song_audio("starboy.wav", [220, 261, 293, 330, 392, 330, 293, 261], bpm=186, duration_seconds=15)
     create_song_audio("shape_of_you.wav", [277, 330, 370, 415, 370, 330, 277, 247], bpm=96, duration_seconds=15)
     create_song_audio("as_it_was.wav", [329, 370, 440, 494, 554, 494, 440, 370], bpm=174, duration_seconds=15)
     create_song_audio("cruel_summer.wav", [293, 370, 440, 494, 587, 494, 440, 370], bpm=170, duration_seconds=15)
+    create_song_audio("lover.wav", [220, 261, 330, 392, 440, 392, 330, 261], bpm=102, duration_seconds=15)
     print("All audio files ready!")

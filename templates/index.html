@@ -13,6 +13,12 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
+    <!-- OFFLINE STATUS NOTIFICATION BANNER -->
+    <div id="offlineBanner" class="offline-banner" style="display: none;">
+        <i class="fa-solid fa-cloud-arrow-down"></i>
+        <span>You are offline. Offline playback is active &mdash; playing from your local downloads.</span>
+    </div>
+
     <div class="app-container">
         <!-- LEFT SIDEBAR -->
         <aside class="sidebar">
@@ -27,21 +33,26 @@
             </div>
 
             <nav class="nav-menu">
-                <button class="nav-item active" onclick="switchView('home')">
+                <button class="nav-item active" id="navHome" onclick="switchView('home')">
                     <i class="fa-solid fa-house"></i>
                     <span>Home</span>
                 </button>
-                <button class="nav-item" onclick="focusSearch()">
+                <button class="nav-item" id="navSearch" onclick="focusSearch()">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <span>Search</span>
                 </button>
-                <button class="nav-item" onclick="switchView('library')">
-                    <i class="fa-solid fa-lines-leaning"></i>
-                    <span>Your Library</span>
+                <button class="nav-item" id="navAlbums" onclick="switchView('albums')">
+                    <i class="fa-solid fa-compact-disc"></i>
+                    <span>Albums</span>
                 </button>
-                <button class="nav-item" onclick="switchView('favorites')">
+                <button class="nav-item" id="navFavorites" onclick="switchView('favorites')">
                     <i class="fa-solid fa-heart" style="color: #1DB954;"></i>
                     <span>Liked Songs</span>
+                </button>
+                <button class="nav-item" id="navDownloads" onclick="switchView('downloads')">
+                    <i class="fa-solid fa-circle-down" style="color: #1DB954;"></i>
+                    <span>Downloads</span>
+                    <span id="downloadBadge" class="sidebar-badge" style="display:none;">0</span>
                 </button>
             </nav>
 
@@ -60,18 +71,20 @@
 
             <div class="playlists-section">
                 <div class="playlists-header">
-                    <span>PLAYLISTS</span>
+                    <span>PLAYLISTS & QUICK ACCESS</span>
                 </div>
                 <ul class="playlist-list" id="playlistList">
                     <li onclick="filterLanguage('ALL')">🌟 Handpicked Top Hits</li>
                     <li onclick="filterLanguage('TAMIL')">🔥 Trending Tamil Beats</li>
                     <li onclick="filterLanguage('ENGLISH')">🌍 Global English Pop</li>
-                    <li onclick="switchView('favorites')">❤️ My Favorites</li>
+                    <li onclick="switchView('albums')">💿 Browse All Albums</li>
+                    <li onclick="switchView('downloads')">📥 Offline Downloads</li>
+                    <li onclick="switchView('favorites')">❤️ My Liked Songs</li>
                 </ul>
             </div>
 
             <div class="sidebar-footer">
-                <span class="version-tag">ISAIIFY v1.0.0 (Python Edition)</span>
+                <span class="version-tag">ISAIIFY v2.0 (Smart Music App)</span>
             </div>
         </aside>
 
@@ -81,12 +94,12 @@
             <header class="topbar">
                 <div class="topbar-left">
                     <div class="history-nav">
-                        <button class="nav-arrow" title="Back"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button class="nav-arrow" title="Back" onclick="navigateBack()"><i class="fa-solid fa-chevron-left"></i></button>
                         <button class="nav-arrow" title="Forward"><i class="fa-solid fa-chevron-right"></i></button>
                     </div>
                     <div class="search-box">
                         <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                        <input type="text" id="searchInput" placeholder="Search ANY song, artist or movie (e.g. Leo, Jailer, Weeknd)..." oninput="handleSearch(this.value)">
+                        <input type="text" id="searchInput" placeholder="Search songs, artists, albums, tags (e.g. Leo, Weeknd, Party)..." oninput="handleSearch(this.value)">
                         <button id="clearSearchBtn" class="clear-search" onclick="clearSearch()"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
@@ -95,27 +108,27 @@
                     <button class="btn-upload-top" onclick="document.getElementById('songFileInput').click()">
                         <i class="fa-solid fa-plus"></i> Upload Song
                     </button>
-                    <span class="user-pill">
+                    <span class="user-pill" id="userPill" title="Local persistent listener profile">
                         <i class="fa-regular fa-user"></i>
-                        <span>Isaiify Listener</span>
+                        <span id="userNameLabel">Listener</span>
                     </span>
                 </div>
             </header>
 
             <!-- SCROLLABLE BODY -->
             <div class="content-scrollable" id="mainScroll">
-                <!-- GREETING & FILTERS -->
-                <section class="welcome-section">
+                <!-- GREETING & FILTERS (Visible in Home view) -->
+                <section class="welcome-section" id="welcomeSection">
                     <div class="greeting-row">
                         <div>
                             <h1 class="greeting-text" id="greetingText">Good evening</h1>
-                            <p class="greeting-sub">Stream Tamil and English songs or upload your own favorite tracks</p>
+                            <p class="greeting-sub">Stream Tamil and English albums, enjoy personalized picks, and download for offline listening</p>
                         </div>
                     </div>
 
                     <!-- LANGUAGE FILTER CHIPS -->
                     <div class="filter-chips">
-                        <button class="chip active" data-lang="ALL" onclick="filterLanguage('ALL')">All Songs</button>
+                        <button class="chip active" data-lang="ALL" onclick="filterLanguage('ALL')">All Music</button>
                         <button class="chip" data-lang="TAMIL" onclick="filterLanguage('TAMIL')">தமிழ் (Tamil)</button>
                         <button class="chip" data-lang="ENGLISH" onclick="filterLanguage('ENGLISH')">English Hits</button>
                     </div>
@@ -130,20 +143,33 @@
                     <!-- Cloud API Results Header -->
                     <div id="onlineSearchHeader" style="margin-bottom: 12px; display: none;">
                         <span style="font-size: 13px; color: #1DB954; font-weight: 700;">
-                            <i class="fa-solid fa-bolt"></i> Live Online Cloud Songs (Click any to stream directly!)
+                            <i class="fa-solid fa-bolt"></i> Live Online Cloud Songs (Stream directly)
                         </span>
                     </div>
                     <div class="cards-grid" id="searchResultsGrid"></div>
                 </section>
 
-                <!-- 1. TOP QUICK-ACCESS GRID (Spotify 6-card grid) -->
+                <!-- 1. TOP QUICK-ACCESS GRID -->
                 <section class="quick-access-section" id="quickAccessSection">
                     <div class="quick-grid" id="quickAccessGrid">
                         <!-- Loaded dynamically -->
                     </div>
                 </section>
 
-                <!-- 2. TRENDING TAMIL HITS -->
+                <!-- 2. RECOMMENDATIONS SECTION (Personalized based on likes & completed plays) -->
+                <section class="content-section" id="recommendationsSection">
+                    <div class="section-header">
+                        <div>
+                            <h2>Recommended For You ✨</h2>
+                            <p class="section-desc" id="recommendationSubtitle">Curated tracks based on your music taste, favorite artists and genres</p>
+                        </div>
+                    </div>
+                    <div class="cards-carousel" id="recommendationsCarousel">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </section>
+
+                <!-- 3. TRENDING TAMIL HITS -->
                 <section class="content-section" id="tamilSection">
                     <div class="section-header">
                         <div>
@@ -157,12 +183,12 @@
                     </div>
                 </section>
 
-                <!-- 3. GLOBAL ENGLISH HITS -->
+                <!-- 4. GLOBAL ENGLISH HITS -->
                 <section class="content-section" id="englishSection">
                     <div class="section-header">
                         <div>
                             <h2>Global English Hits 🌍</h2>
-                            <p class="section-desc">The Weeknd, Taylor Swift, Ed Sheeran, Harry Styles & top chartbusters</p>
+                            <p class="section-desc">The Weeknd, Taylor Swift, Ed Sheeran, Harry Styles & chartbusters</p>
                         </div>
                         <button class="btn-see-all" onclick="filterLanguage('ENGLISH')">Show all</button>
                     </div>
@@ -171,12 +197,26 @@
                     </div>
                 </section>
 
-                <!-- 4. POPULAR ARTISTS -->
+                <!-- 5. FEATURED ALBUMS (Carousel on Home) -->
+                <section class="content-section" id="albumsSection">
+                    <div class="section-header">
+                        <div>
+                            <h2>Featured Albums & Soundtracks 💿</h2>
+                            <p class="section-desc">Click any album to explore its artwork and complete tracklist</p>
+                        </div>
+                        <button class="btn-see-all" onclick="switchView('albums')">Show all albums</button>
+                    </div>
+                    <div class="cards-carousel" id="albumsCarousel">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </section>
+
+                <!-- 6. POPULAR ARTISTS -->
                 <section class="content-section" id="artistsSection">
                     <div class="section-header">
                         <div>
                             <h2>Popular Artists</h2>
-                            <p class="section-desc">Your favorite singers and composers</p>
+                            <p class="section-desc">Top singers and music directors</p>
                         </div>
                     </div>
                     <div class="cards-carousel artists-carousel" id="artistsCarousel">
@@ -184,29 +224,86 @@
                     </div>
                 </section>
 
-                <!-- 5. FEATURED ALBUMS -->
-                <section class="content-section" id="albumsSection">
-                    <div class="section-header">
-                        <div>
-                            <h2>Featured Albums & Soundtracks</h2>
-                            <p class="section-desc">Blockbuster albums you can listen to from start to finish</p>
-                        </div>
+                <!-- ================= NEW VIEWS ================= -->
+
+                <!-- ALBUM DETAIL PAGE VIEW -->
+                <section class="content-section" id="albumDetailSection" style="display: none;">
+                    <div class="view-back-bar">
+                        <button class="btn-back" onclick="navigateBack()">
+                            <i class="fa-solid fa-arrow-left"></i> Back
+                        </button>
                     </div>
-                    <div class="cards-carousel" id="albumsCarousel">
-                        <!-- Loaded dynamically -->
+                    
+                    <div class="album-hero" id="albumHero">
+                        <!-- Album hero artwork & metadata loaded dynamically -->
+                    </div>
+
+                    <div class="album-actions-bar">
+                        <button class="btn-play-album" id="btnPlayAlbum" onclick="playCurrentAlbum()">
+                            <i class="fa-solid fa-play"></i> Play Album
+                        </button>
+                        <button class="btn-icon-circle" title="Shuffle Album" onclick="shuffleCurrentAlbum()">
+                            <i class="fa-solid fa-shuffle"></i>
+                        </button>
+                    </div>
+
+                    <div class="album-tracklist-container">
+                        <div class="tracklist-header-row">
+                            <span class="col-num">#</span>
+                            <span class="col-title">Title</span>
+                            <span class="col-genre">Genre / Mood</span>
+                            <span class="col-time"><i class="fa-regular fa-clock"></i></span>
+                            <span class="col-actions">Actions</span>
+                        </div>
+                        <div class="tracklist-rows" id="albumTracklistRows">
+                            <!-- Tracks loaded dynamically -->
+                        </div>
                     </div>
                 </section>
 
-                <!-- 6. LIKED SONGS VIEW -->
+                <!-- FULL ALBUMS BROWSE VIEW -->
+                <section class="content-section" id="albumsViewSection" style="display: none;">
+                    <div class="section-header">
+                        <div>
+                            <h2>All Albums & Soundtracks 💿</h2>
+                            <p class="section-desc">Browse through Tamil mass hits, English pop albums, and film scores</p>
+                        </div>
+                    </div>
+                    <div class="cards-grid" id="allAlbumsGrid">
+                        <!-- All albums loaded dynamically -->
+                    </div>
+                </section>
+
+                <!-- LIKED SONGS VIEW -->
                 <section class="content-section" id="favoritesSection" style="display: none;">
                     <div class="section-header">
                         <div>
                             <h2>Your Liked Songs ❤️</h2>
-                            <p class="section-desc">Songs you have added to your favorites</p>
+                            <p class="section-desc" id="likedSongsDesc">Songs you have added to your favorites</p>
                         </div>
                     </div>
                     <div class="cards-grid" id="favoritesGrid"></div>
                 </section>
+
+                <!-- DOWNLOADS / OFFLINE LISTENING VIEW -->
+                <section class="content-section" id="downloadsSection" style="display: none;">
+                    <div class="section-header downloads-header">
+                        <div>
+                            <h2>Downloaded Songs 📥</h2>
+                            <p class="section-desc">Stored locally in browser IndexedDB for 100% offline playback</p>
+                        </div>
+                        <div class="downloads-actions">
+                            <span class="storage-tag" id="downloadsStorageTag"><i class="fa-solid fa-hard-drive"></i> 0 MB</span>
+                            <button class="btn-clear-downloads" onclick="clearAllDownloads()"><i class="fa-solid fa-trash-can"></i> Clear All</button>
+                        </div>
+                    </div>
+                    <div class="offline-info-banner">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>Offline songs are securely cached in your browser storage. You can play them anytime without internet connection.</span>
+                    </div>
+                    <div class="cards-grid" id="downloadsGrid"></div>
+                </section>
+
             </div>
         </main>
     </div>
@@ -222,6 +319,9 @@
             </div>
             <button id="playerFavoriteBtn" class="btn-icon" title="Save to Favorites" onclick="toggleCurrentFavorite()">
                 <i class="fa-regular fa-heart"></i>
+            </button>
+            <button id="playerDownloadBtn" class="btn-icon" title="Download for Offline" onclick="toggleCurrentDownload()">
+                <i class="fa-solid fa-arrow-down"></i>
             </button>
         </div>
 
