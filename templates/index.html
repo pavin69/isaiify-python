@@ -4,53 +4,75 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ISAIIFY — Your Music. Your World.</title>
-    <!-- Google Fonts: Plus Jakarta Sans for Spotify look -->
+    <!-- Modern Font: Plus Jakarta Sans with geometric display weights -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- FontAwesome for icons -->
+    <!-- FontAwesome 6.5.1 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <!-- OFFLINE STATUS NOTIFICATION BANNER -->
-    <div id="offlineBanner" class="offline-banner" style="display: none;">
+    <div id="offlineBanner" class="offline-banner" style="display: none;" role="status">
         <i class="fa-solid fa-cloud-arrow-down"></i>
-        <span>You are offline. Offline playback is active &mdash; playing from your local downloads.</span>
+        <span>Offline mode active &mdash; streaming seamlessly from your local downloads.</span>
+        <button class="btn-banner-action" onclick="switchView('downloads')">View Downloads</button>
     </div>
 
     <div class="app-container">
         <!-- LEFT SIDEBAR -->
-        <aside class="sidebar">
+        <aside class="sidebar" role="navigation" aria-label="Main Navigation">
             <div class="brand">
-                <div class="brand-logo">
-                    <i class="fa-brands fa-spotify"></i>
+                <div class="brand-logo" title="Isaiify Music">
+                    <!-- Custom ISAIIFY Soundwave Gem Logo (Original, not Spotify) -->
+                    <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Isaiify Brand Mark">
+                        <rect width="34" height="34" rx="10" fill="url(#isaiify-gem-grad)"/>
+                        <path d="M8 18V16M12 22V12M17 26V8M22 21V13M26 17V17" stroke="#041E15" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <linearGradient id="isaiify-gem-grad" x1="0" y1="0" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#10B981"/>
+                                <stop offset="1" stop-color="#06B6D4"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
                 </div>
                 <div class="brand-info">
                     <span class="brand-name">ISAIIFY</span>
-                    <span class="brand-tagline">Your Music. Your World.</span>
+                    <span class="brand-tagline">YOUR MUSIC. YOUR WORLD.</span>
                 </div>
             </div>
 
             <nav class="nav-menu">
-                <button class="nav-item active" id="navHome" onclick="switchView('home')">
+                <button class="nav-item active" id="navHome" onclick="switchView('home')" aria-label="Go to Home">
                     <i class="fa-solid fa-house"></i>
                     <span>Home</span>
                 </button>
-                <button class="nav-item" id="navSearch" onclick="focusSearch()">
+                <button class="nav-item" id="navSearch" onclick="focusSearch()" aria-label="Search Songs and Artists">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <span>Search</span>
+                    <span>Explore & Search</span>
                 </button>
-                <button class="nav-item" id="navAlbums" onclick="switchView('albums')">
+                <button class="nav-item" id="navAlbums" onclick="switchView('albums')" aria-label="Browse Albums">
                     <i class="fa-solid fa-compact-disc"></i>
                     <span>Albums</span>
                 </button>
-                <button class="nav-item" id="navFavorites" onclick="switchView('favorites')">
-                    <i class="fa-solid fa-heart" style="color: #1DB954;"></i>
-                    <span>Liked Songs</span>
+                <button class="nav-item" id="navArtists" onclick="switchView('artists')" aria-label="Browse Artists">
+                    <i class="fa-solid fa-microphone-lines"></i>
+                    <span>Artists</span>
                 </button>
-                <button class="nav-item" id="navDownloads" onclick="switchView('downloads')">
-                    <i class="fa-solid fa-circle-down" style="color: #1DB954;"></i>
+            </nav>
+
+            <div class="sidebar-divider"></div>
+
+            <div class="sidebar-section-title">YOUR COLLECTION</div>
+            <nav class="nav-menu secondary-nav">
+                <button class="nav-item" id="navFavorites" onclick="switchView('favorites')" aria-label="View Liked Songs">
+                    <i class="fa-solid fa-heart text-emerald"></i>
+                    <span>Liked Songs</span>
+                    <span id="likedCountBadge" class="sidebar-badge-subtle" style="display:none;">0</span>
+                </button>
+                <button class="nav-item" id="navDownloads" onclick="switchView('downloads')" aria-label="View Offline Downloads">
+                    <i class="fa-solid fa-circle-down text-emerald"></i>
                     <span>Downloads</span>
                     <span id="downloadBadge" class="sidebar-badge" style="display:none;">0</span>
                 </button>
@@ -61,9 +83,9 @@
             <!-- UPLOAD MP3 SECTION -->
             <div class="upload-box">
                 <input type="file" id="songFileInput" accept=".mp3,.wav,.m4a,.ogg" style="display:none;" onchange="handleSongUpload(event)">
-                <button class="btn-upload" onclick="document.getElementById('songFileInput').click()">
+                <button class="btn-upload" onclick="document.getElementById('songFileInput').click()" aria-label="Add Local MP3 Songs">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
-                    <span>+ Add Your MP3 Songs</span>
+                    <span>+ Add Local MP3</span>
                 </button>
             </div>
 
@@ -71,97 +93,121 @@
 
             <div class="playlists-section">
                 <div class="playlists-header">
-                    <span>PLAYLISTS & QUICK ACCESS</span>
+                    <span>QUICK PLAYLISTS</span>
                 </div>
                 <ul class="playlist-list" id="playlistList">
-                    <li onclick="filterLanguage('ALL')">🌟 Handpicked Top Hits</li>
-                    <li onclick="filterLanguage('TAMIL')">🔥 Trending Tamil Beats</li>
-                    <li onclick="filterLanguage('ENGLISH')">🌍 Global English Pop</li>
-                    <li onclick="switchView('albums')">💿 Browse All Albums</li>
-                    <li onclick="switchView('downloads')">📥 Offline Downloads</li>
-                    <li onclick="switchView('favorites')">❤️ My Liked Songs</li>
+                    <li onclick="filterLanguage('ALL')"><i class="fa-solid fa-sparkles"></i> Handpicked Top Hits</li>
+                    <li onclick="filterLanguage('TAMIL')"><i class="fa-solid fa-fire"></i> Trending Tamil Beats</li>
+                    <li onclick="filterLanguage('ENGLISH')"><i class="fa-solid fa-globe"></i> Global English Pop</li>
+                    <li onclick="switchView('albums')"><i class="fa-solid fa-record-vinyl"></i> All Studio Albums</li>
+                    <li onclick="switchView('downloads')"><i class="fa-solid fa-hard-drive"></i> Offline Vault</li>
                 </ul>
             </div>
 
             <div class="sidebar-footer">
-                <span class="version-tag">ISAIIFY v2.0 (Smart Music App)</span>
+                <button class="btn-shortcuts-hint" onclick="openShortcutsModal()" title="Keyboard Shortcuts">
+                    <i class="fa-solid fa-keyboard"></i>
+                    <span>Shortcuts (Press ?)</span>
+                </button>
+                <span class="version-tag">ISAIIFY Premium • v2.5</span>
             </div>
         </aside>
 
         <!-- MAIN CONTENT AREA -->
-        <main class="main-content">
+        <main class="main-content" role="main">
             <!-- TOP BAR -->
             <header class="topbar">
                 <div class="topbar-left">
                     <div class="history-nav">
-                        <button class="nav-arrow" title="Back" onclick="navigateBack()"><i class="fa-solid fa-chevron-left"></i></button>
-                        <button class="nav-arrow" title="Forward"><i class="fa-solid fa-chevron-right"></i></button>
+                        <button class="nav-arrow" title="Go Back" onclick="navigateBack()" aria-label="Back"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button class="nav-arrow" title="Go Forward" onclick="navigateForward()" aria-label="Forward"><i class="fa-solid fa-chevron-right"></i></button>
                     </div>
                     <div class="search-box">
                         <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                        <input type="text" id="searchInput" placeholder="Search songs, artists, albums, tags (e.g. Leo, Weeknd, Party)..." oninput="handleSearch(this.value)">
-                        <button id="clearSearchBtn" class="clear-search" onclick="clearSearch()"><i class="fa-solid fa-xmark"></i></button>
+                        <input type="text" id="searchInput" placeholder="Search songs, artists, albums, or genres..." oninput="handleSearch(this.value)" aria-label="Search catalog">
+                        <button id="clearSearchBtn" class="clear-search" onclick="clearSearch()" aria-label="Clear Search"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
 
                 <div class="topbar-right">
-                    <button class="btn-upload-top" onclick="document.getElementById('songFileInput').click()">
+                    <button class="btn-upload-top" onclick="document.getElementById('songFileInput').click()" aria-label="Upload Song">
                         <i class="fa-solid fa-plus"></i> Upload Song
                     </button>
-                    <span class="user-pill" id="userPill" title="Local persistent listener profile">
-                        <i class="fa-regular fa-user"></i>
+                    <button class="btn-top-icon" onclick="openShortcutsModal()" title="Keyboard Shortcuts" aria-label="Keyboard Shortcuts">
+                        <i class="fa-solid fa-keyboard"></i>
+                    </button>
+                    <button class="btn-top-icon" id="topbarQueueBtn" onclick="toggleQueueDrawer()" title="View Queue" aria-label="Open Playback Queue">
+                        <i class="fa-solid fa-list-ul"></i>
+                    </button>
+                    <div class="user-pill" id="userPill" title="Listener Session Profile">
+                        <span class="user-avatar-dot"><i class="fa-regular fa-user"></i></span>
                         <span id="userNameLabel">Listener</span>
-                    </span>
+                    </div>
                 </div>
             </header>
 
             <!-- SCROLLABLE BODY -->
             <div class="content-scrollable" id="mainScroll">
-                <!-- GREETING & FILTERS (Visible in Home view) -->
+                
+                <!-- SKELETON LOADER (Visible while fetching initial data) -->
+                <div id="skeletonContainer" class="skeleton-container" style="display: none;">
+                    <div class="skeleton-header"></div>
+                    <div class="skeleton-grid">
+                        <div class="skeleton-card"></div>
+                        <div class="skeleton-card"></div>
+                        <div class="skeleton-card"></div>
+                        <div class="skeleton-card"></div>
+                        <div class="skeleton-card"></div>
+                        <div class="skeleton-card"></div>
+                    </div>
+                </div>
+
+                <!-- 1. HOME SCREEN VIEW -->
+                <!-- GREETING & FILTERS -->
                 <section class="welcome-section" id="welcomeSection">
                     <div class="greeting-row">
-                        <div>
+                        <div class="greeting-content">
+                            <span class="greeting-overline" id="greetingOverline">DISCOVER TODAY</span>
                             <h1 class="greeting-text" id="greetingText">Good evening</h1>
-                            <p class="greeting-sub">Stream Tamil and English albums, enjoy personalized picks, and download for offline listening</p>
+                            <p class="greeting-sub">Stream Tamil soundtracks, global pop albums, and download for high-fidelity offline listening</p>
                         </div>
                     </div>
 
-                    <!-- LANGUAGE FILTER CHIPS -->
+                    <!-- LANGUAGE & FILTER CHIPS -->
                     <div class="filter-chips">
-                        <button class="chip active" data-lang="ALL" onclick="filterLanguage('ALL')">All Music</button>
+                        <button class="chip active" data-lang="ALL" onclick="filterLanguage('ALL')">All Tracks</button>
                         <button class="chip" data-lang="TAMIL" onclick="filterLanguage('TAMIL')">தமிழ் (Tamil)</button>
                         <button class="chip" data-lang="ENGLISH" onclick="filterLanguage('ENGLISH')">English Hits</button>
+                        <button class="chip" data-lang="OFFLINE" onclick="switchView('downloads')"><i class="fa-solid fa-circle-down"></i> Offline Only</button>
                     </div>
                 </section>
 
-                <!-- SEARCH RESULTS CONTAINER -->
-                <section id="searchResultsSection" class="content-section" style="display: none;">
-                    <div class="section-header">
-                        <h2>Search Results</h2>
-                        <span id="searchResultCount" class="sub-count"></span>
-                    </div>
-                    <!-- Cloud API Results Header -->
-                    <div id="onlineSearchHeader" style="margin-bottom: 12px; display: none;">
-                        <span style="font-size: 13px; color: #1DB954; font-weight: 700;">
-                            <i class="fa-solid fa-bolt"></i> Live Online Cloud Songs (Stream directly)
-                        </span>
-                    </div>
-                    <div class="cards-grid" id="searchResultsGrid"></div>
-                </section>
-
-                <!-- 1. TOP QUICK-ACCESS GRID -->
+                <!-- 2. QUICK ACCESS 6-CARD GRID (Spotify-inspired ergonomic tiles) -->
                 <section class="quick-access-section" id="quickAccessSection">
                     <div class="quick-grid" id="quickAccessGrid">
                         <!-- Loaded dynamically -->
                     </div>
                 </section>
 
-                <!-- 2. RECOMMENDATIONS SECTION (Personalized based on likes & completed plays) -->
+                <!-- 3. RECENTLY PLAYED SECTION (Personalized listening history) -->
+                <section class="content-section" id="recentlyPlayedSection" style="display: none;">
+                    <div class="section-header">
+                        <div>
+                            <h2>Recently Played 🕒</h2>
+                            <p class="section-desc">Jump straight back into the songs you listened to recently</p>
+                        </div>
+                    </div>
+                    <div class="cards-carousel" id="recentlyPlayedCarousel">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </section>
+
+                <!-- 4. RECOMMENDATIONS SECTION (Personalized by algorithmic taste profile) -->
                 <section class="content-section" id="recommendationsSection">
                     <div class="section-header">
                         <div>
-                            <h2>Recommended For You ✨</h2>
-                            <p class="section-desc" id="recommendationSubtitle">Curated tracks based on your music taste, favorite artists and genres</p>
+                            <h2>Made For You ✨</h2>
+                            <p class="section-desc" id="recommendationSubtitle">Smart picks tuned to your liked artists, genres, and listening habits</p>
                         </div>
                     </div>
                     <div class="cards-carousel" id="recommendationsCarousel">
@@ -169,12 +215,12 @@
                     </div>
                 </section>
 
-                <!-- 3. TRENDING TAMIL HITS -->
+                <!-- 5. TRENDING TAMIL HITS -->
                 <section class="content-section" id="tamilSection">
                     <div class="section-header">
                         <div>
                             <h2>Trending Tamil Hits 🔥</h2>
-                            <p class="section-desc">Anirudh, A.R. Rahman, Yuvan & the hottest Kollywood soundtracks</p>
+                            <p class="section-desc">Anirudh, A.R. Rahman, Yuvan & the biggest Kollywood chartbusters</p>
                         </div>
                         <button class="btn-see-all" onclick="filterLanguage('TAMIL')">Show all</button>
                     </div>
@@ -183,12 +229,12 @@
                     </div>
                 </section>
 
-                <!-- 4. GLOBAL ENGLISH HITS -->
+                <!-- 6. GLOBAL ENGLISH HITS -->
                 <section class="content-section" id="englishSection">
                     <div class="section-header">
                         <div>
                             <h2>Global English Hits 🌍</h2>
-                            <p class="section-desc">The Weeknd, Taylor Swift, Ed Sheeran, Harry Styles & chartbusters</p>
+                            <p class="section-desc">The Weeknd, Taylor Swift, Ed Sheeran, Harry Styles & international sensations</p>
                         </div>
                         <button class="btn-see-all" onclick="filterLanguage('ENGLISH')">Show all</button>
                     </div>
@@ -197,12 +243,12 @@
                     </div>
                 </section>
 
-                <!-- 5. FEATURED ALBUMS (Carousel on Home) -->
+                <!-- 7. FEATURED ALBUMS (Carousel on Home) -->
                 <section class="content-section" id="albumsSection">
                     <div class="section-header">
                         <div>
                             <h2>Featured Albums & Soundtracks 💿</h2>
-                            <p class="section-desc">Click any album to explore its artwork and complete tracklist</p>
+                            <p class="section-desc">Explore complete album artwork, tracklists, and play entire releases</p>
                         </div>
                         <button class="btn-see-all" onclick="switchView('albums')">Show all albums</button>
                     </div>
@@ -211,25 +257,51 @@
                     </div>
                 </section>
 
-                <!-- 6. POPULAR ARTISTS -->
+                <!-- 8. POPULAR ARTISTS -->
                 <section class="content-section" id="artistsSection">
                     <div class="section-header">
                         <div>
-                            <h2>Popular Artists</h2>
-                            <p class="section-desc">Top singers and music directors</p>
+                            <h2>Popular Artists 🎤</h2>
+                            <p class="section-desc">Explore verified artists, discography, and their highest-streamed songs</p>
                         </div>
+                        <button class="btn-see-all" onclick="switchView('artists')">View all</button>
                     </div>
                     <div class="cards-carousel artists-carousel" id="artistsCarousel">
                         <!-- Loaded dynamically -->
                     </div>
                 </section>
 
-                <!-- ================= NEW VIEWS ================= -->
+                <!-- ================= SEARCH & BROWSE VIEW ================= -->
+                <section id="searchResultsSection" class="content-section" style="display: none;">
+                    <div class="section-header">
+                        <div>
+                            <h2 id="searchHeading">Search Catalog</h2>
+                            <span id="searchResultCount" class="sub-count"></span>
+                        </div>
+                    </div>
 
-                <!-- ALBUM DETAIL PAGE VIEW -->
+                    <!-- Cloud Stream Notice -->
+                    <div id="onlineSearchHeader" class="online-stream-banner" style="display: none;">
+                        <i class="fa-solid fa-cloud-bolt text-emerald"></i>
+                        <span>Live online cloud results included &mdash; click to stream directly</span>
+                    </div>
+
+                    <!-- Browse Categories (visible when query is empty) -->
+                    <div id="browseCategoriesContainer" class="browse-categories-container" style="display: none;">
+                        <h3 class="browse-categories-title">Browse Genres & Moods</h3>
+                        <div class="categories-grid" id="categoriesGrid">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Search Results Grid -->
+                    <div class="cards-grid" id="searchResultsGrid"></div>
+                </section>
+
+                <!-- ================= ALBUM DETAIL PAGE VIEW ================= -->
                 <section class="content-section" id="albumDetailSection" style="display: none;">
                     <div class="view-back-bar">
-                        <button class="btn-back" onclick="navigateBack()">
+                        <button class="btn-back" onclick="navigateBack()" aria-label="Go back">
                             <i class="fa-solid fa-arrow-left"></i> Back
                         </button>
                     </div>
@@ -242,8 +314,11 @@
                         <button class="btn-play-album" id="btnPlayAlbum" onclick="playCurrentAlbum()">
                             <i class="fa-solid fa-play"></i> Play Album
                         </button>
-                        <button class="btn-icon-circle" title="Shuffle Album" onclick="shuffleCurrentAlbum()">
+                        <button class="btn-icon-circle" title="Shuffle Album" onclick="shuffleCurrentAlbum()" aria-label="Shuffle Album">
                             <i class="fa-solid fa-shuffle"></i>
+                        </button>
+                        <button class="btn-icon-circle" id="btnAlbumDownloadAll" title="Download Entire Album" onclick="downloadCurrentAlbum()" aria-label="Download All Tracks">
+                            <i class="fa-solid fa-arrow-down"></i>
                         </button>
                     </div>
 
@@ -261,12 +336,44 @@
                     </div>
                 </section>
 
-                <!-- FULL ALBUMS BROWSE VIEW -->
+                <!-- ================= ARTIST DETAIL PAGE VIEW ================= -->
+                <section class="content-section" id="artistDetailSection" style="display: none;">
+                    <div class="view-back-bar">
+                        <button class="btn-back" onclick="navigateBack()" aria-label="Go back">
+                            <i class="fa-solid fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+
+                    <div class="artist-hero" id="artistHero">
+                        <!-- Artist avatar, verified badge, bio loaded dynamically -->
+                    </div>
+
+                    <div class="album-actions-bar">
+                        <button class="btn-play-album" id="btnPlayArtist" onclick="playCurrentArtist()">
+                            <i class="fa-solid fa-play"></i> Play Artist
+                        </button>
+                        <button class="btn-icon-circle" title="Shuffle Artist Songs" onclick="shuffleCurrentArtist()" aria-label="Shuffle Artist">
+                            <i class="fa-solid fa-shuffle"></i>
+                        </button>
+                    </div>
+
+                    <div class="artist-section-block">
+                        <h3 class="sub-block-title">Popular Songs</h3>
+                        <div class="tracklist-rows" id="artistTracklistRows"></div>
+                    </div>
+
+                    <div class="artist-section-block">
+                        <h3 class="sub-block-title">Albums & Soundtracks</h3>
+                        <div class="cards-carousel" id="artistAlbumsCarousel"></div>
+                    </div>
+                </section>
+
+                <!-- ================= ALL ALBUMS BROWSE VIEW ================= -->
                 <section class="content-section" id="albumsViewSection" style="display: none;">
                     <div class="section-header">
                         <div>
                             <h2>All Albums & Soundtracks 💿</h2>
-                            <p class="section-desc">Browse through Tamil mass hits, English pop albums, and film scores</p>
+                            <p class="section-desc">Browse through Tamil mass soundtracks, English pop albums, and film scores</p>
                         </div>
                     </div>
                     <div class="cards-grid" id="allAlbumsGrid">
@@ -274,53 +381,98 @@
                     </div>
                 </section>
 
-                <!-- LIKED SONGS VIEW -->
-                <section class="content-section" id="favoritesSection" style="display: none;">
+                <!-- ================= ALL ARTISTS BROWSE VIEW ================= -->
+                <section class="content-section" id="artistsViewSection" style="display: none;">
                     <div class="section-header">
                         <div>
-                            <h2>Your Liked Songs ❤️</h2>
-                            <p class="section-desc" id="likedSongsDesc">Songs you have added to your favorites</p>
+                            <h2>Featured Artists 🎤</h2>
+                            <p class="section-desc">Explore composers, vocalists, and international hitmakers</p>
+                        </div>
+                    </div>
+                    <div class="cards-grid artists-browse-grid" id="allArtistsGrid">
+                        <!-- All artists loaded dynamically -->
+                    </div>
+                </section>
+
+                <!-- ================= LIKED SONGS VIEW ================= -->
+                <section class="content-section" id="favoritesSection" style="display: none;">
+                    <div class="favorites-hero">
+                        <div class="favorites-hero-icon">
+                            <i class="fa-solid fa-heart"></i>
+                        </div>
+                        <div class="favorites-hero-info">
+                            <span class="hero-type">PLAYLIST</span>
+                            <h1 class="hero-title">Liked Songs</h1>
+                            <p class="hero-meta" id="likedSongsDesc">0 songs saved to your favorites</p>
                         </div>
                     </div>
                     <div class="cards-grid" id="favoritesGrid"></div>
                 </section>
 
-                <!-- DOWNLOADS / OFFLINE LISTENING VIEW -->
+                <!-- ================= DOWNLOADS / OFFLINE VIEW ================= -->
                 <section class="content-section" id="downloadsSection" style="display: none;">
                     <div class="section-header downloads-header">
                         <div>
-                            <h2>Downloaded Songs 📥</h2>
-                            <p class="section-desc">Stored locally in browser IndexedDB for 100% offline playback</p>
+                            <h2>Offline Downloads 📥</h2>
+                            <p class="section-desc">High-fidelity audio cached in browser IndexedDB for zero-data listening</p>
                         </div>
                         <div class="downloads-actions">
                             <span class="storage-tag" id="downloadsStorageTag"><i class="fa-solid fa-hard-drive"></i> 0 MB</span>
-                            <button class="btn-clear-downloads" onclick="clearAllDownloads()"><i class="fa-solid fa-trash-can"></i> Clear All</button>
+                            <button class="btn-clear-downloads" onclick="clearAllDownloads()" aria-label="Clear All Downloads">
+                                <i class="fa-solid fa-trash-can"></i> Clear All
+                            </button>
                         </div>
                     </div>
                     <div class="offline-info-banner">
-                        <i class="fa-solid fa-circle-info"></i>
-                        <span>Offline songs are securely cached in your browser storage. You can play them anytime without internet connection.</span>
+                        <i class="fa-solid fa-shield-halved text-emerald"></i>
+                        <span>Offline playback uses origin-sandboxed IndexedDB binary blobs. You can play your cached songs anytime without internet!</span>
                     </div>
                     <div class="cards-grid" id="downloadsGrid"></div>
                 </section>
 
             </div>
         </main>
+
+        <!-- SLIDE-OUT PLAYBACK QUEUE DRAWER -->
+        <aside class="queue-drawer" id="queueDrawer" aria-label="Playback Queue">
+            <div class="queue-header">
+                <div class="queue-title-wrap">
+                    <h3>Playback Queue</h3>
+                    <span class="queue-count-badge" id="queueCountBadge">0 songs</span>
+                </div>
+                <button class="btn-icon" onclick="toggleQueueDrawer()" title="Close Queue" aria-label="Close Queue">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="queue-content" id="queueContent">
+                <div class="queue-subhead">NOW PLAYING</div>
+                <div class="queue-now-playing" id="queueNowPlaying"></div>
+
+                <div class="queue-subhead" style="margin-top: 16px;">NEXT UP</div>
+                <div class="queue-list" id="queueList"></div>
+            </div>
+        </aside>
     </div>
 
     <!-- BOTTOM FIXED MUSIC PLAYER -->
-    <footer class="player-bar">
+    <footer class="player-bar" role="region" aria-label="Audio Player">
         <!-- LEFT: TRACK INFO -->
         <div class="player-left">
-            <img id="playerArtwork" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100" alt="Album Art" class="player-art">
+            <div class="player-art-wrap">
+                <img id="playerArtwork" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100" alt="Current Track Album Art" class="player-art">
+                <div class="playing-equalizer-bars" id="playerEqualizer" style="display: none;">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
             <div class="player-meta">
                 <span id="playerTitle" class="player-title">Naa Ready</span>
-                <span id="playerArtist" class="player-artist">Anirudh Ravichander</span>
+                <span id="playerArtist" class="player-artist" onclick="handleCurrentArtistClick()" title="View Artist Profile">Anirudh Ravichander</span>
             </div>
-            <button id="playerFavoriteBtn" class="btn-icon" title="Save to Favorites" onclick="toggleCurrentFavorite()">
+            <button id="playerFavoriteBtn" class="btn-icon" title="Save to Favorites" onclick="toggleCurrentFavorite()" aria-label="Like Current Track">
                 <i class="fa-regular fa-heart"></i>
             </button>
-            <button id="playerDownloadBtn" class="btn-icon" title="Download for Offline" onclick="toggleCurrentDownload()">
+            <button id="playerDownloadBtn" class="btn-icon" title="Download for Offline" onclick="toggleCurrentDownload()" aria-label="Download Current Track">
                 <i class="fa-solid fa-arrow-down"></i>
             </button>
         </div>
@@ -328,27 +480,29 @@
         <!-- CENTER: CONTROLS & SEEKBAR -->
         <div class="player-center">
             <div class="player-controls">
-                <button id="shuffleBtn" class="btn-icon-control" title="Shuffle" onclick="toggleShuffle()">
+                <button id="shuffleBtn" class="btn-icon-control" title="Shuffle (S)" onclick="toggleShuffle()" aria-label="Shuffle">
                     <i class="fa-solid fa-shuffle"></i>
                 </button>
-                <button id="prevBtn" class="btn-icon-control" title="Previous" onclick="playPrevious()">
+                <button id="prevBtn" class="btn-icon-control" title="Previous (Left Arrow)" onclick="playPrevious()" aria-label="Previous Song">
                     <i class="fa-solid fa-backward-step"></i>
                 </button>
-                <button id="playPauseBtn" class="btn-play-pause" title="Play/Pause" onclick="togglePlayPause()">
+                <button id="playPauseBtn" class="btn-play-pause" title="Play/Pause (Space)" onclick="togglePlayPause()" aria-label="Play or Pause">
                     <i class="fa-solid fa-play"></i>
                 </button>
-                <button id="nextBtn" class="btn-icon-control" title="Next" onclick="playNext()">
+                <button id="nextBtn" class="btn-icon-control" title="Next (Right Arrow)" onclick="playNext()" aria-label="Next Song">
                     <i class="fa-solid fa-forward-step"></i>
                 </button>
-                <button id="repeatBtn" class="btn-icon-control" title="Repeat" onclick="toggleRepeat()">
+                <button id="repeatBtn" class="btn-icon-control" title="Repeat" onclick="toggleRepeat()" aria-label="Repeat">
                     <i class="fa-solid fa-repeat"></i>
                 </button>
             </div>
 
             <div class="playback-bar">
                 <span id="currentTime" class="time-label">0:00</span>
-                <div class="progress-container" id="progressContainer" onclick="seekAudio(event)">
-                    <div class="progress-bar" id="progressBar"></div>
+                <div class="progress-container" id="progressContainer" onclick="seekAudio(event)" role="slider" aria-label="Seek Bar" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar" id="progressBar">
+                        <div class="progress-handle"></div>
+                    </div>
                 </div>
                 <span id="totalTime" class="time-label">0:15</span>
             </div>
@@ -356,23 +510,47 @@
 
         <!-- RIGHT: VOLUME & EXTRAS -->
         <div class="player-right">
-            <button id="muteBtn" class="btn-icon" title="Mute" onclick="toggleMute()">
+            <button id="playerQueueBtn" class="btn-icon" title="Playback Queue (Q)" onclick="toggleQueueDrawer()" aria-label="Queue Drawer">
+                <i class="fa-solid fa-list-ul"></i>
+            </button>
+            <button id="muteBtn" class="btn-icon" title="Mute (M)" onclick="toggleMute()" aria-label="Mute / Unmute">
                 <i class="fa-solid fa-volume-high"></i>
             </button>
             <div class="volume-container">
-                <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.8" oninput="changeVolume(this.value)">
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.8" oninput="changeVolume(this.value)" aria-label="Volume Slider">
             </div>
-            <button class="btn-icon" title="Language Badge">
+            <button class="btn-icon" title="Language Badge" aria-label="Language Badge">
                 <span id="playerLangBadge" class="mini-lang-badge">TAMIL</span>
             </button>
         </div>
     </footer>
 
+    <!-- KEYBOARD SHORTCUTS MODAL -->
+    <div id="shortcutsModal" class="modal-backdrop" style="display: none;" onclick="closeShortcutsModal(event)">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="shortcutsModalTitle">
+            <div class="modal-header">
+                <h3 id="shortcutsModalTitle"><i class="fa-solid fa-keyboard text-emerald"></i> Keyboard Shortcuts</h3>
+                <button class="btn-icon" onclick="closeShortcutsModal()" aria-label="Close modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="shortcuts-grid">
+                <div class="shortcut-item"><kbd>Space</kbd><span>Play / Pause</span></div>
+                <div class="shortcut-item"><kbd>→</kbd><span>Seek forward 5s</span></div>
+                <div class="shortcut-item"><kbd>←</kbd><span>Seek backward 5s</span></div>
+                <div class="shortcut-item"><kbd>↑</kbd><span>Volume up</span></div>
+                <div class="shortcut-item"><kbd>↓</kbd><span>Volume down</span></div>
+                <div class="shortcut-item"><kbd>M</kbd><span>Mute / Unmute</span></div>
+                <div class="shortcut-item"><kbd>L</kbd><span>Like / Unlike current song</span></div>
+                <div class="shortcut-item"><kbd>Q</kbd><span>Toggle Playback Queue</span></div>
+                <div class="shortcut-item"><kbd>Esc</kbd><span>Close drawer / modal</span></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden HTML5 Audio Element -->
     <audio id="audioPlayer" preload="auto"></audio>
 
     <!-- TOAST NOTIFICATION -->
-    <div id="toast" class="toast"></div>
+    <div id="toast" class="toast" role="alert" aria-live="polite"></div>
 
     <script src="/static/js/player.js"></script>
 </body>

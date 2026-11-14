@@ -335,6 +335,45 @@ def get_artists():
     conn.close()
     return jsonify({"success": True, "artists": artists})
 
+@app.route("/api/artists/<artist_id>", methods=["GET"])
+def get_artist_detail(artist_id):
+    user_id = get_current_user_id()
+    artist = database.get_artist_with_content(artist_id)
+    if not artist:
+        return jsonify({"success": False, "error": "Artist not found"}), 404
+
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT song_id FROM user_likes WHERE user_id = ?", (user_id,))
+    user_liked = {r["song_id"] for r in cursor.fetchall()}
+    conn.close()
+
+    for s in artist.get("songs", []):
+        if user_liked:
+            s["is_favorite"] = 1 if s["id"] in user_liked else 0
+        s["artwork_url"] = s.get("image_url", "")
+
+    return jsonify({"success": True, "artist": artist})
+
+@app.route("/api/recently-played", methods=["GET"])
+def get_recently_played_endpoint():
+    user_id = get_current_user_id()
+    limit = int(request.args.get("limit", 8))
+    songs = database.get_recently_played(user_id, limit=limit)
+
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT song_id FROM user_likes WHERE user_id = ?", (user_id,))
+    user_liked = {r["song_id"] for r in cursor.fetchall()}
+    conn.close()
+
+    for s in songs:
+        if user_liked:
+            s["is_favorite"] = 1 if s["id"] in user_liked else 0
+        s["artwork_url"] = s.get("image_url", "")
+
+    return jsonify({"success": True, "songs": songs})
+
 @app.route("/api/playlists", methods=["GET"])
 def get_playlists():
     conn = database.get_connection()

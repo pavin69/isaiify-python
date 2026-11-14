@@ -221,6 +221,9 @@ def upgrade_and_seed_catalog(cursor):
         ("art_03", "The Weeknd", "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&auto=format&fit=crop&q=80", "105.8M monthly listeners", "ENGLISH", "Global superstar redefining R&B and synth-pop."),
         ("art_04", "Yuvan Shankar Raja", "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=500&auto=format&fit=crop&q=80", "9.7M monthly listeners", "TAMIL", "Youth icon and maestro of soulful Tamil melodies."),
         ("art_05", "Taylor Swift", "https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=500&auto=format&fit=crop&q=80", "98.2M monthly listeners", "ENGLISH", "Global pop icon with timeless albums and storytelling."),
+        ("art_06", "Ed Sheeran", "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&auto=format&fit=crop&q=80", "84.2M monthly listeners", "ENGLISH", "Record-breaking British singer-songwriter with timeless acoustic hits."),
+        ("art_07", "Harry Styles", "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=500&auto=format&fit=crop&q=80", "62.5M monthly listeners", "ENGLISH", "Grammy-winning icon delivering infectious retro pop and indie anthems."),
+        ("art_08", "Dhibu Ninan Thomas", "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=500&auto=format&fit=crop&q=80", "3.8M monthly listeners", "TAMIL", "Acclaimed composer behind modern Tamil romantic masterworks."),
     ]
     cursor.executemany("""
     INSERT OR REPLACE INTO artists VALUES (?, ?, ?, ?, ?, ?)
@@ -365,6 +368,59 @@ def record_event(user_id, song_id, event_type, listened_seconds=0, song_duration
         
     conn.commit()
     conn.close()
+
+def get_artist_with_content(artist_id):
+    """Retrieve full artist profile including popular songs and albums."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM artists WHERE id = ?", (artist_id,))
+    artist_row = cursor.fetchone()
+    if not artist_row:
+        conn.close()
+        return None
+    
+    artist = dict(artist_row)
+    # Match songs by artist name
+    cursor.execute("""
+    SELECT * FROM songs 
+    WHERE artist LIKE ? 
+    ORDER BY play_count DESC
+    """, (f"%{artist['name']}%",))
+    artist["songs"] = [dict(r) for r in cursor.fetchall()]
+
+    # Match albums by artist name
+    cursor.execute("""
+    SELECT * FROM albums 
+    WHERE artist LIKE ? 
+    ORDER BY release_year DESC
+    """, (f"%{artist['name']}%",))
+    artist["albums"] = [dict(r) for r in cursor.fetchall()]
+
+    conn.close()
+    return artist
+
+def get_recently_played(user_id, limit=8):
+    """Get songs recently played by user; fallback to top played songs."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+    SELECT s.*, MAX(le.timestamp) as last_played
+    FROM listening_events le
+    JOIN songs s ON le.song_id = s.id
+    WHERE le.user_id = ?
+    GROUP BY s.id
+    ORDER BY last_played DESC
+    LIMIT ?
+    """, (user_id, limit))
+    songs = [dict(r) for r in cursor.fetchall()]
+
+    if not songs:
+        cursor.execute("SELECT * FROM songs ORDER BY play_count DESC LIMIT ?", (limit,))
+        songs = [dict(r) for r in cursor.fetchall()]
+
+    conn.close()
+    return songs
 
 if __name__ == "__main__":
     init_db()
