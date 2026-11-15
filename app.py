@@ -8,8 +8,28 @@ from werkzeug.utils import secure_filename
 from Crypto.Cipher import DES
 import base64
 
+# Lightweight .env loader without external dependency requirement
+def load_dotenv_fallback(dotenv_path=".env"):
+    if os.path.exists(dotenv_path):
+        try:
+            with open(dotenv_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    key, val = line.split("=", 1)
+                    key = key.strip()
+                    val = val.strip().strip("'\"")
+                    if key and key not in os.environ:
+                        os.environ[key] = val
+        except Exception as e:
+            print("[Warning] Could not load .env file:", e)
+
+load_dotenv_fallback()
+
 import database
 import recommendations
+from providers import provider_manager
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
@@ -95,39 +115,103 @@ def get_quick_access():
 
     return jsonify({"success": True, "songs": songs})
 
-@app.route("/api/search", methods=["GET"])
-def search():
-    q = request.args.get("q", "").strip()
-    if not q:
-        return jsonify({"success": True, "songs": [], "artists": [], "albums": []})
-        
-    term = f"%{q}%"
+# --- PROVIDERS & INTEGRATIONS ---
+@app.route("/api/providers/status", methods=["GET"])
+def get_providers_status():
+    """Return status, readiness, and licensing permissions for all providers."""
+    return jsonify({
+        "success": True,
+        "providers": provider_manager.get_provider_statuses()
+    })
+
+@app.route("/api/providers/jamendo/albums/<album_id>", methods=["GET"])
+def get_jamendo_album(album_id):
+    """Retrieve Jamendo album details and tracklist."""
     user_id = get_current_user_id()
+    album = provider_manager.get_album(album_id)
+    if not album:
+        return jsonify({"success": False, "error": "Jamendo album not found or provider unconfigured"}), 404
+
     conn = database.get_connection()
     cursor = conn.cursor()
-    
-    cursor.execute("SELECT * FROM songs WHERE title LIKE ? OR artist LIKE ? OR album LIKE ? OR category LIKE ? OR tags LIKE ?",
-                   (term, term, term, term, term))
-    songs = [dict(row) for row in cursor.fetchall()]
-    
-    cursor.execute("SELECT * FROM artists WHERE name LIKE ?", (term,))
-    artists = [dict(row) for row in cursor.fetchall()]
-    
-    cursor.execute("SELECT * FROM albums WHERE title LIKE ? OR artist LIKE ? OR genre LIKE ?", (term, term, term))
-    albums = [dict(row) for row in cursor.fetchall()]
-
     cursor.execute("SELECT song_id FROM user_likes WHERE user_id = ?", (user_id,))
     user_liked = {r["song_id"] for r in cursor.fetchall()}
     conn.close()
 
-    for s in songs:
-        if user_liked:
-            s["is_favorite"] = 1 if s["id"] in user_liked else 0
+    for s in album.get("songs", []):
+        s["is_favorite"] = 1 if s.get("id") in user_liked else 0
         s["artwork_url"] = s.get("image_url", "")
+
+    return jsonify({"success": True, "album": album})
+
+@app.route("/api/search", methods=["GET"])
+def search():
+    q = request.args.get("q", "").strip()
+    provider_filter = request.args.get("provider", "all").strip().lower()
+    user_id = get_current_user_id()
+    
+    statuses = provider_manager.get_provider_statuses()
+    if not q:
+        return jsonify({
+            "success": True,
+            "query": "",
+            "provider": provider_filter,
+            "provider_statuses": statuses,
+            "songs": [],
+            "artists": [],
+            "albums": []
+        })
+        
+    songs = []
+    artists = []
+    albums = []
+
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT song_id FROM user_likes WHERE user_id = ?", (user_id,))
+    user_liked = {r["song_id"] for r in cursor.fetchall()}
+
+    # 1. Query Isaiify local catalog if filter includes 'all' or 'isaiify'
+    if provider_filter in ("all", "isaiify"):
+        term = f"%{q}%"
+        cursor.execute(
+            "SELECT * FROM songs WHERE title LIKE ? OR artist LIKE ? OR album LIKE ? OR category LIKE ? OR tags LIKE ?",
+            (term, term, term, term, term)
+        )
+        for row in cursor.fetchall():
+            s = dict(row)
+            if not s.get("provider"):
+                s["provider"] = "isaiify"
+            s["artwork_url"] = s.get("image_url", "")
+            s["is_favorite"] = 1 if s["id"] in user_liked else 0
+            songs.append(s)
+            
+        cursor.execute("SELECT * FROM artists WHERE name LIKE ?", (term,))
+        artists.extend([dict(row) for row in cursor.fetchall()])
+        
+        cursor.execute("SELECT * FROM albums WHERE title LIKE ? OR artist LIKE ? OR genre LIKE ?", (term, term, term))
+        albums.extend([dict(row) for row in cursor.fetchall()])
+        
+    conn.close()
+
+    # 2. Query External Providers (Jamendo & SoundCloud)
+    if provider_filter in ("all", "jamendo", "soundcloud"):
+        external_tracks = provider_manager.search_tracks(q, provider_filter=provider_filter, limit=15)
+        for t in external_tracks:
+            t["is_favorite"] = 1 if t.get("id") in user_liked else 0
+            songs.append(t)
+            
+        external_albums = provider_manager.search_albums(q, provider_filter=provider_filter, limit=8)
+        albums.extend(external_albums)
+        
+        external_artists = provider_manager.search_artists(q, provider_filter=provider_filter, limit=8)
+        artists.extend(external_artists)
     
     return jsonify({
         "success": True,
         "query": q,
+        "provider": provider_filter,
+        "provider_statuses": statuses,
         "songs": songs,
         "artists": artists,
         "albums": albums
@@ -259,7 +343,10 @@ def upload_song():
 @app.route("/api/favorites/<song_id>/toggle", methods=["POST"])
 def toggle_favorite(song_id):
     user_id = get_current_user_id()
-    is_liked = database.toggle_user_like(user_id, song_id)
+    song_data = None
+    if request.is_json:
+        song_data = (request.json or {}).get("song_data")
+    is_liked = database.toggle_user_like(user_id, song_id, song_data=song_data)
     # Record event
     database.record_event(user_id, song_id, "like" if is_liked else "unlike")
     return jsonify({"success": True, "song_id": song_id, "is_favorite": 1 if is_liked else 0})

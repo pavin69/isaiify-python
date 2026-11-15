@@ -2161,3 +2161,298 @@ kbd {
         width: 100%;
     }
 }
+
+/* ==========================================================================
+   PROVIDER INTEGRATIONS (JAMENDO & SOUNDCLOUD)
+   ========================================================================== */
+.provider-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0 20px 0;
+    flex-wrap: wrap;
+}
+
+.provider-filter-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 4px;
+}
+
+.provider-chip {
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle);
+    padding: 7px 16px;
+    border-radius: var(--radius-full);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: var(--transition-fast);
+}
+
+.provider-chip:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+    border-color: var(--border-medium);
+}
+
+.provider-chip.active {
+    background: var(--accent-glow-subtle);
+    color: var(--accent-emerald-light);
+    border-color: var(--accent-emerald);
+}
+
+.provider-status-alert {
+    padding: 12px 18px;
+    border-radius: var(--radius-md);
+    margin-bottom: 20px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.provider-status-alert.alert-warning {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #FDE68A;
+}
+
+.provider-status-alert .alert-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.btn-alert-action {
+    background: #F59E0B;
+    color: #1E1B4B;
+    border: none;
+    border-radius: var(--radius-full);
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: var(--transition-fast);
+}
+
+.btn-alert-action:hover {
+    background: #D97706;
+}
+
+/* Provider Badges */
+.provider-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.provider-pill.pill-sm {
+    font-size: 9px;
+    padding: 2px 6px;
+}
+
+.pill-jamendo {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.pill-soundcloud {
+    background: rgba(255, 85, 0, 0.2);
+    color: #FF7733;
+    border: 1px solid rgba(255, 85, 0, 0.4);
+}
+
+.pill-isaiify {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60A5FA;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.card-title-row .card-title {
+    margin-bottom: 0;
+    flex: 1;
+}
+
+.card-ext-link {
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.card-ext-link:hover {
+    color: var(--accent-emerald-light);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.card-provider-row {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.card-action-btn.dl-restricted {
+    opacity: 0.55;
+    cursor: not-allowed;
+    color: #EF4444;
+}
+
+.card-action-btn.dl-restricted:hover {
+    background: rgba(239, 68, 68, 0.15);
+    transform: none;
+}
+
+/* Player Bar Provider Info */
+.player-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-source-link {
+    color: var(--text-muted);
+    font-size: 12px;
+    transition: var(--transition-fast);
+}
+
+.player-source-link:hover {
+    color: var(--accent-emerald-light);
+}
+
+/* Providers Modal */
+.modal-card.modal-wide {
+    max-width: 680px;
+    width: 90%;
+}
+
+.provider-modal-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.provider-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    transition: var(--transition-fast);
+}
+
+.provider-card.active-card {
+    border-left: 4px solid var(--accent-emerald);
+}
+
+.provider-card.unconfigured-card {
+    border-left: 4px solid #F59E0B;
+}
+
+.provider-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.provider-card-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.provider-badge-status {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+}
+
+.badge-ready {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.badge-pending {
+    background: rgba(245, 158, 11, 0.2);
+    color: #F59E0B;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.provider-card-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.provider-card-details {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.provider-card-details a {
+    color: var(--accent-emerald-light);
+    text-decoration: underline;
+}
+
+.provider-setup-box {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: rgba(245, 158, 11, 0.08);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: #FDE68A;
+}
+
+.provider-setup-box ol {
+    margin: 8px 0 0 18px;
+    padding: 0;
+    line-height: 1.5;
+}
+
+.provider-setup-box code {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 2px 5px;
+    border-radius: 3px;
+    color: #FBBF24;
+}

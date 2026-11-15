@@ -20,6 +20,11 @@ let currentAlbum = null;
 let currentArtist = null;
 let isQueueOpen = false;
 
+// Provider Integration State (Jamendo, SoundCloud, Isaiify Vault)
+let selectedSearchProvider = "all";
+let cachedProviderStatuses = null;
+let lastSearchResults = { songs: [], albums: [], artists: [] };
+
 // User Identity & Preference State
 function getUserId() {
     let uid = localStorage.getItem("isaiify_user_id");
@@ -80,6 +85,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupKeyboardShortcuts();
     renderCategoriesGrid();
 
+    await fetchProviderStatuses();
     await initOfflineDB();
     await loadAllData();
     await loadRecommendations();
@@ -245,6 +251,7 @@ async function toggleSongDownload(songId, event) {
     const song = allSongs.find(s => s.id === songId) || 
                  (currentAlbum && currentAlbum.songs ? currentAlbum.songs.find(s => s.id === songId) : null) ||
                  (currentArtist && currentArtist.songs ? currentArtist.songs.find(s => s.id === songId) : null) ||
+                 (lastSearchResults && lastSearchResults.songs ? lastSearchResults.songs.find(s => s.id === songId) : null) ||
                  currentPlaylist.find(s => s.id === songId);
 
     if (!song) {
@@ -252,8 +259,13 @@ async function toggleSongDownload(songId, event) {
         return;
     }
 
-    if (song.allow_download === 0 || song.is_online) {
-        showToast("Stream-only: Offline download restricted by license.");
+    if (song.provider === "soundcloud") {
+        showToast("Offline downloads disabled: SoundCloud API Terms of Use prohibit downloading or caching.");
+        return;
+    }
+
+    if (song.allow_download === 0 || song.is_online || (song.provider === "jamendo" && song.allow_download !== 1)) {
+        showToast("Streaming only: Artist has not granted Creative Commons download rights for this track.");
         return;
     }
 
@@ -522,10 +534,56 @@ function renderCarousels(songs) {
 
 function createSongCardHtml(song) {
     const badgeClass = song.language === "TAMIL" ? "badge-tamil" : "badge-english";
-    const onlineBadge = song.is_online ? '<span style="background:#10B981; color:#041E15; font-size:9px; font-weight:800; padding:2px 5px; border-radius:3px; margin-left:4px;">CLOUD</span>' : '';
+    const onlineBadge = song.is_online ? '<span class="provider-pill pill-sm" style="background:#10B981; color:#041E15;">CLOUD</span>' : '';
     const isLiked = song.is_favorite === 1;
     const isDownloaded = downloadedSongIds.has(song.id);
     const isDownloading = downloadingSongIds.has(song.id);
+
+    // Provider badge
+    let providerBadgeHtml = '';
+    if (song.provider === 'jamendo') {
+        providerBadgeHtml = `<span class="provider-pill pill-jamendo pill-sm" title="Creative Commons License"><i class="fa-brands fa-creative-commons"></i> Jamendo</span>`;
+    } else if (song.provider === 'soundcloud') {
+        providerBadgeHtml = `<span class="provider-pill pill-soundcloud pill-sm" title="SoundCloud Stream"><i class="fa-brands fa-soundcloud"></i> SoundCloud</span>`;
+    }
+
+    // Source link-back icon
+    let sourceLinkHtml = '';
+    if (song.source_url) {
+        sourceLinkHtml = `<a href="${song.source_url}" target="_blank" rel="noopener noreferrer" class="card-ext-link" title="Open original on ${song.provider || 'source'}" onclick="event.stopPropagation()"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>`;
+    }
+
+    // Download button according to licensing & provider policy
+    let downloadBtnHtml = '';
+    if (song.provider === 'soundcloud') {
+        downloadBtnHtml = `
+            <button class="card-action-btn dl-restricted" 
+                    title="Offline downloads disabled (SoundCloud terms prohibit downloading or caching)" 
+                    onclick="handleRestrictedDownload('SoundCloud terms strictly prohibit offline downloading or caching.', event)"
+                    aria-label="Downloads disabled for SoundCloud">
+                <i class="fa-solid fa-ban"></i>
+            </button>
+        `;
+    } else if (song.allow_download === 0 || (song.provider === 'jamendo' && song.allow_download !== 1)) {
+        downloadBtnHtml = `
+            <button class="card-action-btn dl-restricted" 
+                    title="Streaming only (Artist has not enabled CC download permission)" 
+                    onclick="handleRestrictedDownload('Artist has not granted Creative Commons download rights for this track.', event)"
+                    aria-label="Streaming only">
+                <i class="fa-solid fa-ban"></i>
+            </button>
+        `;
+    } else {
+        downloadBtnHtml = `
+            <button class="card-action-btn ${isDownloaded ? 'downloaded' : ''} ${isDownloading ? 'downloading' : ''}" 
+                    data-dl-id="${song.id}"
+                    title="${isDownloaded ? 'Downloaded (Offline)' : 'Download for offline'}" 
+                    onclick="toggleSongDownload('${song.id}', event)"
+                    aria-label="Download ${song.title}">
+                <i class="${isDownloaded ? 'fa-solid fa-circle-check' : (isDownloading ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-arrow-down')}"></i>
+            </button>
+        `;
+    }
 
     const recBadge = song.recommendation_reason ? 
         `<div class="rec-reason-badge" title="${song.recommendation_reason}"><i class="fa-solid fa-wand-magic-sparkles"></i> ${song.recommendation_reason}</div>` : '';
@@ -534,7 +592,7 @@ function createSongCardHtml(song) {
         <div class="music-card" onclick="handleCardClick('${song.id}')">
             <div class="card-img-wrap">
                 <img src="${song.image_url}" alt="${song.title}" loading="lazy">
-                <span class="lang-badge ${badgeClass}">${song.language}</span>
+                <span class="lang-badge ${badgeClass}">${song.language || 'MUSIC'}</span>
                 <button class="card-play-btn" aria-label="Play ${song.title}"><i class="fa-solid fa-play"></i></button>
 
                 <div class="card-actions-hover">
@@ -545,19 +603,15 @@ function createSongCardHtml(song) {
                             aria-label="Like ${song.title}">
                         <i class="${isLiked ? 'fa-solid fa-heart' : 'fa-regular fa-heart'}"></i>
                     </button>
-                    ${song.allow_download !== 0 ? `
-                    <button class="card-action-btn ${isDownloaded ? 'downloaded' : ''} ${isDownloading ? 'downloading' : ''}" 
-                            data-dl-id="${song.id}"
-                            title="${isDownloaded ? 'Downloaded (Offline)' : 'Download for offline'}" 
-                            onclick="toggleSongDownload('${song.id}', event)"
-                            aria-label="Download ${song.title}">
-                        <i class="${isDownloaded ? 'fa-solid fa-circle-check' : (isDownloading ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-arrow-down')}"></i>
-                    </button>
-                    ` : ''}
+                    ${downloadBtnHtml}
                 </div>
             </div>
-            <div class="card-title">${song.title} ${onlineBadge}</div>
+            <div class="card-title-row">
+                <div class="card-title">${song.title} ${onlineBadge}</div>
+                ${sourceLinkHtml}
+            </div>
             <div class="card-sub" onclick="openArtistByName('${song.artist.split(',')[0].trim()}', event)" title="View Artist Profile">${song.artist}</div>
+            ${providerBadgeHtml ? `<div class="card-provider-row">${providerBadgeHtml}</div>` : ''}
             ${recBadge}
         </div>
     `;
@@ -617,7 +671,10 @@ function createAlbumCardHtml(alb) {
 
 async function openAlbumView(albumId) {
     try {
-        const res = await fetch(`/api/albums/${albumId}`, { headers: authHeaders() });
+        const endpoint = albumId.startsWith("jamendo_alb_") ?
+            `/api/providers/jamendo/albums/${encodeURIComponent(albumId)}` :
+            `/api/albums/${encodeURIComponent(albumId)}`;
+        const res = await fetch(endpoint, { headers: authHeaders() });
         const data = await res.json();
         if (!data.success) {
             showToast("Failed to load album details.");
@@ -881,10 +938,21 @@ function shuffleCurrentArtist() {
 async function toggleLikeSong(songId, event) {
     if (event) event.stopPropagation();
 
+    // Look for song object to persist full metadata for external provider tracks
+    const songObj = allSongs.find(s => s.id === songId) || 
+                    currentPlaylist.find(s => s.id === songId) ||
+                    (lastSearchResults && lastSearchResults.songs ? lastSearchResults.songs.find(s => s.id === songId) : null);
+
     try {
+        const payload = { user_id: getUserId() };
+        if (songObj) {
+            payload.song_data = songObj;
+        }
+
         const res = await fetch(`/api/favorites/${songId}/toggle`, {
             method: "POST",
-            headers: authHeaders()
+            headers: authHeaders(),
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (data.success) {
@@ -1153,6 +1221,51 @@ async function loadTrack(index, autoPlay = true) {
     updateFavoriteIcon(track.is_favorite === 1);
     updateDownloadButtonsInDOM();
 
+    // Update bottom player provider badge and external link
+    const providerBadge = document.getElementById("playerProviderBadge");
+    const sourceLink = document.getElementById("playerSourceLink");
+    if (providerBadge) {
+        if (track.provider === "jamendo") {
+            providerBadge.style.display = "inline-flex";
+            providerBadge.className = "provider-pill pill-jamendo pill-sm";
+            providerBadge.innerHTML = '<i class="fa-brands fa-creative-commons"></i> Jamendo';
+            providerBadge.title = "Jamendo Creative Commons Catalog";
+        } else if (track.provider === "soundcloud") {
+            providerBadge.style.display = "inline-flex";
+            providerBadge.className = "provider-pill pill-soundcloud pill-sm";
+            providerBadge.innerHTML = '<i class="fa-brands fa-soundcloud"></i> SoundCloud';
+            providerBadge.title = "Official SoundCloud Stream";
+        } else {
+            providerBadge.style.display = "none";
+        }
+    }
+    if (sourceLink) {
+        if (track.source_url) {
+            sourceLink.style.display = "inline-flex";
+            sourceLink.href = track.source_url;
+            sourceLink.title = `Listen original on ${track.provider || 'source'}`;
+        } else {
+            sourceLink.style.display = "none";
+        }
+    }
+
+    // Update player download button based on provider permissions
+    if (playerDownloadBtn) {
+        if (track.provider === "soundcloud") {
+            playerDownloadBtn.style.opacity = "0.4";
+            playerDownloadBtn.title = "Offline downloads disabled (SoundCloud terms prohibit downloading or caching)";
+            playerDownloadBtn.onclick = () => showToast("SoundCloud terms forbid offline downloading or caching");
+        } else if (track.allow_download === 0 || (track.provider === "jamendo" && track.allow_download !== 1)) {
+            playerDownloadBtn.style.opacity = "0.4";
+            playerDownloadBtn.title = "Streaming only (Artist has not enabled CC download permission)";
+            playerDownloadBtn.onclick = () => showToast("Artist has not enabled offline download rights for this track");
+        } else {
+            playerDownloadBtn.style.opacity = "1";
+            playerDownloadBtn.title = "Download for Offline";
+            playerDownloadBtn.onclick = toggleCurrentDownload;
+        }
+    }
+
     if (autoPlay) {
         audio.play().then(() => {
             isPlaying = true;
@@ -1210,7 +1323,8 @@ function playSongById(id) {
     if (index !== -1) {
         loadTrack(index, true);
     } else {
-        const song = allSongs.find(s => s.id === id);
+        const song = allSongs.find(s => s.id === id) || 
+                     (lastSearchResults && lastSearchResults.songs ? lastSearchResults.songs.find(s => s.id === id) : null);
         if (song) {
             currentPlaylist.push(song);
             loadTrack(currentPlaylist.length - 1, true);
@@ -1507,7 +1621,6 @@ function handleSearch(query) {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(async () => {
         const trimmed = query.trim();
-        const searchSection = document.getElementById("searchResultsSection");
         const resultsGrid = document.getElementById("searchResultsGrid");
         const countSpan = document.getElementById("searchResultCount");
         const onlineHeader = document.getElementById("onlineSearchHeader");
@@ -1525,58 +1638,254 @@ function handleSearch(query) {
         switchView("search");
         if (categoriesContainer) categoriesContainer.style.display = "none";
         if (searchHeading) searchHeading.innerText = `Results for "${trimmed}"`;
-        if (resultsGrid) resultsGrid.innerHTML = "<p style='color:var(--accent-emerald); padding:24px;'>Searching tracks, artists, and live audio cloud...</p>";
+        if (resultsGrid) resultsGrid.innerHTML = "<p style='color:var(--accent-emerald); padding:24px;'><i class='fa-solid fa-spinner fa-spin'></i> Searching music catalogs...</p>";
 
         try {
-            const [localRes, onlineRes] = await Promise.allSettled([
-                fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, { headers: authHeaders() }),
-                fetch(`/api/online-search?q=${encodeURIComponent(trimmed)}`)
-            ]);
+            const searchUrl = `/api/search?q=${encodeURIComponent(trimmed)}&provider=${encodeURIComponent(selectedSearchProvider)}`;
+            const res = await fetch(searchUrl, { headers: authHeaders() });
+            const data = await res.json();
 
             let mergedSongs = [];
+            let albums = [];
+            let artists = [];
 
-            if (localRes.status === "fulfilled") {
-                const localData = await localRes.value.json();
-                if (localData.success) {
-                    mergedSongs.push(...localData.songs);
-                }
+            if (data.success) {
+                mergedSongs = data.songs || [];
+                albums = data.albums || [];
+                artists = data.artists || [];
+                lastSearchResults = { songs: mergedSongs, albums, artists };
             }
 
-            if (onlineRes.status === "fulfilled") {
-                const onlineData = await onlineRes.value.json();
-                if (onlineData.success && onlineData.results.length > 0) {
-                    if (onlineHeader) onlineHeader.style.display = "flex";
-                    onlineData.results.forEach(onlineSong => {
-                        if (!allSongs.some(s => s.id === onlineSong.id)) {
-                            allSongs.push(onlineSong);
-                        }
-                        mergedSongs.push(onlineSong);
-                    });
-                }
+            if (countSpan) {
+                countSpan.innerText = `${mergedSongs.length} track${mergedSongs.length === 1 ? '' : 's'}${albums.length > 0 ? `, ${albums.length} album${albums.length === 1 ? '' : 's'}` : ''}`;
             }
 
-            if (countSpan) countSpan.innerText = `${mergedSongs.length} items found`;
-
-            if (mergedSongs.length === 0) {
+            if (mergedSongs.length === 0 && albums.length === 0 && artists.length === 0) {
                 if (resultsGrid) {
+                    let helperHint = "";
+                    if (selectedSearchProvider === "jamendo" && cachedProviderStatuses && !cachedProviderStatuses.jamendo.configured) {
+                        helperHint = `<p style="margin-top:12px; color:#F59E0B; font-size:13px;"><i class="fa-solid fa-circle-info"></i> Jamendo search is awaiting a configured <code>JAMENDO_CLIENT_ID</code>. Click 'Music Sources' in the sidebar to view setup steps.</p>`;
+                    } else if (selectedSearchProvider === "soundcloud" && cachedProviderStatuses && !cachedProviderStatuses.soundcloud.configured) {
+                        helperHint = `<p style="margin-top:12px; color:#F59E0B; font-size:13px;"><i class="fa-solid fa-circle-info"></i> SoundCloud search requires approved developer credentials. Click 'Music Sources' to view setup steps.</p>`;
+                    }
+
                     resultsGrid.innerHTML = `
                         <div class="empty-state-box">
                             <i class="fa-solid fa-magnifying-glass empty-state-icon"></i>
                             <h3 class="empty-state-title">No matches found</h3>
-                            <p class="empty-state-desc">We couldn't find any tracks matching "${trimmed}". Try checking for spelling or searching another artist.</p>
+                            <p class="empty-state-desc">We couldn't find any tracks or albums matching "${trimmed}". Try searching another title or artist.</p>
+                            ${helperHint}
                             <button class="btn-empty-action" onclick="clearSearch()">View Categories</button>
                         </div>
                     `;
                 }
             } else {
-                if (resultsGrid) resultsGrid.innerHTML = mergedSongs.map(s => createSongCardHtml(s)).join("");
+                let html = "";
+                // If albums were returned by search
+                if (albums.length > 0) {
+                    html += `
+                        <div class="search-albums-row" style="grid-column: 1 / -1; margin-bottom: 16px;">
+                            <h3 style="font-size:16px; font-weight:700; margin-bottom:12px; color:var(--text-primary);"><i class="fa-solid fa-record-vinyl text-emerald"></i> Matching Albums</h3>
+                            <div class="cards-carousel">${albums.map(alb => createAlbumCardHtml(alb)).join("")}</div>
+                        </div>
+                    `;
+                }
+
+                html += mergedSongs.map(s => createSongCardHtml(s)).join("");
+                if (resultsGrid) resultsGrid.innerHTML = html;
                 updateDownloadButtonsInDOM();
             }
         } catch (err) {
             console.error("Search error:", err);
-            if (resultsGrid) resultsGrid.innerHTML = "<p style='color:#EF4444;'>Search encountered an error. Please check your connection.</p>";
+            if (resultsGrid) resultsGrid.innerHTML = "<p style='color:#EF4444; padding:20px;'>Search encountered an error. Please check your connection.</p>";
         }
     }, 280);
+}
+
+// =============================================================================
+// PROVIDER INTEGRATIONS & LICENSING CONTROLS
+// =============================================================================
+
+function handleRestrictedDownload(message, event) {
+    if (event) event.stopPropagation();
+    showToast(message || "This track cannot be downloaded under licensing terms.");
+}
+
+async function fetchProviderStatuses() {
+    try {
+        const res = await fetch("/api/providers/status");
+        const data = await res.json();
+        if (data.success) {
+            cachedProviderStatuses = data.providers;
+            updateSidebarProviderBadge();
+        }
+        return cachedProviderStatuses;
+    } catch (err) {
+        console.warn("Could not fetch provider statuses:", err);
+        return null;
+    }
+}
+
+function updateSidebarProviderBadge() {
+    const badge = document.getElementById("providersActiveBadge");
+    if (!badge || !cachedProviderStatuses) return;
+    const jamReady = cachedProviderStatuses.jamendo && cachedProviderStatuses.jamendo.configured;
+    const scReady = cachedProviderStatuses.soundcloud && cachedProviderStatuses.soundcloud.configured;
+    let count = 0;
+    if (jamReady) count++;
+    if (scReady) count++;
+    if (count > 0) {
+        badge.innerText = `${count} Active`;
+        badge.style.background = "rgba(16, 185, 129, 0.2)";
+        badge.style.color = "#10B981";
+    } else {
+        badge.innerText = "Setup";
+        badge.style.background = "rgba(245, 158, 11, 0.2)";
+        badge.style.color = "#F59E0B";
+    }
+}
+
+function selectSearchProvider(provider) {
+    selectedSearchProvider = provider;
+    document.querySelectorAll(".provider-chip").forEach(chip => {
+        chip.classList.toggle("active", chip.getAttribute("data-provider") === provider);
+    });
+
+    const alertBox = document.getElementById("providerStatusAlert");
+    if (alertBox && cachedProviderStatuses) {
+        if (provider === "jamendo" && !cachedProviderStatuses.jamendo.configured) {
+            alertBox.style.display = "flex";
+            alertBox.className = "provider-status-alert alert-warning";
+            alertBox.innerHTML = `
+                <div class="alert-content">
+                    <strong><i class="fa-solid fa-circle-exclamation"></i> Jamendo Client ID Required:</strong>
+                    <span>Jamendo API search is awaiting credentials. Set <code>JAMENDO_CLIENT_ID</code> in server environment or .env.</span>
+                </div>
+                <button class="btn-alert-action" onclick="openProvidersModal()">Setup Instructions</button>
+            `;
+        } else if (provider === "soundcloud" && !cachedProviderStatuses.soundcloud.configured) {
+            alertBox.style.display = "flex";
+            alertBox.className = "provider-status-alert alert-warning";
+            alertBox.innerHTML = `
+                <div class="alert-content">
+                    <strong><i class="fa-solid fa-circle-exclamation"></i> SoundCloud API Credentials Required:</strong>
+                    <span>SoundCloud requires developer approval and credentials. Set <code>SOUNDCLOUD_CLIENT_ID</code> and <code>SOUNDCLOUD_CLIENT_SECRET</code>.</span>
+                </div>
+                <button class="btn-alert-action" onclick="openProvidersModal()">Setup Instructions</button>
+            `;
+        } else {
+            alertBox.style.display = "none";
+        }
+    }
+
+    const input = document.getElementById("searchInput");
+    if (input && input.value.trim()) {
+        handleSearch(input.value);
+    }
+}
+
+async function openProvidersModal() {
+    const modal = document.getElementById("providersModal");
+    const body = document.getElementById("providersModalBody");
+    if (!modal || !body) return;
+
+    modal.style.display = "flex";
+    body.innerHTML = '<div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Checking music providers...</div>';
+
+    const statuses = await fetchProviderStatuses();
+    if (!statuses) {
+        body.innerHTML = '<p style="color:#EF4444; padding:20px;">Could not connect to provider status endpoint.</p>';
+        return;
+    }
+
+    const jam = statuses.jamendo || {};
+    const sc = statuses.soundcloud || {};
+    const vault = statuses.isaiify || {};
+
+    body.innerHTML = `
+        <div class="provider-modal-grid">
+            <!-- Isaiify Vault -->
+            <div class="provider-card active-card">
+                <div class="provider-card-header">
+                    <div class="provider-card-title">
+                        <i class="fa-solid fa-vault text-emerald"></i>
+                        <span>${vault.display_name || "Isaiify Vault"}</span>
+                    </div>
+                    <span class="provider-badge-status badge-ready">Connected</span>
+                </div>
+                <p class="provider-card-desc">Local curated master catalog and your user MP3 uploads.</p>
+                <div class="provider-card-details">
+                    <div><strong>Streaming:</strong> Allowed</div>
+                    <div><strong>Offline Downloads:</strong> Allowed</div>
+                    <div><strong>Catalog Source:</strong> Local Database & Server Storage</div>
+                </div>
+            </div>
+
+            <!-- Jamendo -->
+            <div class="provider-card ${jam.configured ? 'active-card' : 'unconfigured-card'}">
+                <div class="provider-card-header">
+                    <div class="provider-card-title">
+                        <i class="fa-brands fa-creative-commons" style="color:#10B981;"></i>
+                        <span>${jam.display_name || "Jamendo Music"}</span>
+                    </div>
+                    <span class="provider-badge-status ${jam.configured ? 'badge-ready' : 'badge-pending'}">
+                        ${jam.configured ? 'Connected' : 'Awaiting Client ID'}
+                    </span>
+                </div>
+                <p class="provider-card-desc">Official Jamendo v3.0 REST API catalog under Creative Commons.</p>
+                <div class="provider-card-details">
+                    <div><strong>Streaming:</strong> ${jam.configured ? 'Enabled (Official API)' : 'Awaiting JAMENDO_CLIENT_ID'}</div>
+                    <div><strong>Offline Downloads:</strong> Conditional (Allowed only when track artist permits CC download)</div>
+                    <div><strong>Developer Portal:</strong> <a href="${jam.terms_url || 'https://developer.jamendo.com'}" target="_blank" rel="noopener noreferrer">developer.jamendo.com</a></div>
+                </div>
+                ${!jam.configured ? `
+                    <div class="provider-setup-box">
+                        <strong>How to enable Jamendo:</strong>
+                        <ol>
+                            <li>Register at <a href="https://developer.jamendo.com" target="_blank">developer.jamendo.com</a></li>
+                            <li>Create an application to obtain your free Client ID</li>
+                            <li>Set <code>JAMENDO_CLIENT_ID</code> in Render dashboard or your local <code>.env</code> file</li>
+                        </ol>
+                    </div>
+                ` : ''}
+            </div>
+
+            <!-- SoundCloud -->
+            <div class="provider-card ${sc.configured ? 'active-card' : 'unconfigured-card'}">
+                <div class="provider-card-header">
+                    <div class="provider-card-title">
+                        <i class="fa-brands fa-soundcloud" style="color:#FF5500;"></i>
+                        <span>${sc.display_name || "SoundCloud"}</span>
+                    </div>
+                    <span class="provider-badge-status ${sc.configured ? 'badge-ready' : 'badge-pending'}">
+                        ${sc.configured ? 'Connected' : 'Awaiting API Approval'}
+                    </span>
+                </div>
+                <p class="provider-card-desc">Official SoundCloud API streaming integration.</p>
+                <div class="provider-card-details">
+                    <div><strong>Streaming:</strong> ${sc.configured ? 'Enabled (Official API)' : 'Awaiting SOUNDCLOUD_CLIENT_ID'}</div>
+                    <div><strong>Offline Downloads:</strong> <span style="color:#EF4444; font-weight:700;">Strictly Prohibited</span> (SoundCloud API Terms of Use forbid downloading and caching)</div>
+                    <div><strong>Developer Portal:</strong> <a href="https://developers.soundcloud.com" target="_blank" rel="noopener noreferrer">developers.soundcloud.com</a></div>
+                </div>
+                ${!sc.configured ? `
+                    <div class="provider-setup-box">
+                        <strong>How to enable SoundCloud:</strong>
+                        <ol>
+                            <li>Request developer access at <a href="https://developers.soundcloud.com" target="_blank">developers.soundcloud.com</a></li>
+                            <li>Receive your Client ID and Client Secret upon approval</li>
+                            <li>Set <code>SOUNDCLOUD_CLIENT_ID</code> and <code>SOUNDCLOUD_CLIENT_SECRET</code> in Render / <code>.env</code></li>
+                        </ol>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function closeProvidersModal(event) {
+    if (event && event.target !== document.getElementById("providersModal")) return;
+    const modal = document.getElementById("providersModal");
+    if (modal) modal.style.display = "none";
 }
 
 function clearSearch() {

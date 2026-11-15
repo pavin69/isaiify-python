@@ -88,7 +88,7 @@ def init_db():
     );
     """)
 
-    # Schema migration: ensure songs table has album_id, tags, allow_download
+    # Schema migration: ensure songs table has album_id, tags, allow_download, provider, source_url, license_url
     cursor.execute("PRAGMA table_info(songs)")
     columns = [row[1] for row in cursor.fetchall()]
     if "album_id" not in columns:
@@ -97,6 +97,12 @@ def init_db():
         cursor.execute("ALTER TABLE songs ADD COLUMN tags TEXT DEFAULT ''")
     if "allow_download" not in columns:
         cursor.execute("ALTER TABLE songs ADD COLUMN allow_download INTEGER DEFAULT 1")
+    if "provider" not in columns:
+        cursor.execute("ALTER TABLE songs ADD COLUMN provider TEXT DEFAULT 'isaiify'")
+    if "source_url" not in columns:
+        cursor.execute("ALTER TABLE songs ADD COLUMN source_url TEXT DEFAULT ''")
+    if "license_url" not in columns:
+        cursor.execute("ALTER TABLE songs ADD COLUMN license_url TEXT DEFAULT ''")
 
     # Schema migration: ensure albums table has genre
     cursor.execute("PRAGMA table_info(albums)")
@@ -251,12 +257,16 @@ def get_album_with_songs(album_id):
     return album
 
 def add_song(song_dict):
-    """Add or update a song easily in the catalog."""
+    """Add or update a song easily in the catalog, including external provider tracks."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT INTO songs (id, title, artist, album, album_id, language, category, duration_seconds, audio_url, image_url, is_favorite, play_count, tags, allow_download)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO songs (
+        id, title, artist, album, album_id, language, category,
+        duration_seconds, audio_url, image_url, is_favorite, play_count,
+        tags, allow_download, provider, source_url, license_url
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
         title=excluded.title,
         artist=excluded.artist,
@@ -268,7 +278,10 @@ def add_song(song_dict):
         audio_url=excluded.audio_url,
         image_url=excluded.image_url,
         tags=excluded.tags,
-        allow_download=excluded.allow_download
+        allow_download=excluded.allow_download,
+        provider=excluded.provider,
+        source_url=excluded.source_url,
+        license_url=excluded.license_url
     """, (
         song_dict.get("id"),
         song_dict.get("title"),
@@ -283,7 +296,10 @@ def add_song(song_dict):
         int(song_dict.get("is_favorite", 0)),
         int(song_dict.get("play_count", 0)),
         song_dict.get("tags", ""),
-        int(song_dict.get("allow_download", 1))
+        int(song_dict.get("allow_download", 1)),
+        song_dict.get("provider", "isaiify"),
+        song_dict.get("source_url", ""),
+        song_dict.get("license_url", "")
     ))
     conn.commit()
     conn.close()
@@ -316,8 +332,21 @@ def add_album(album_dict):
     conn.commit()
     conn.close()
 
-def toggle_user_like(user_id, song_id):
-    """Toggle a like for a specific user. Also syncs global is_favorite fallback."""
+def toggle_user_like(user_id, song_id, song_data=None):
+    """Toggle a like for a specific user. Supports saving external Jamendo/SoundCloud tracks."""
+    if song_data and isinstance(song_data, dict):
+        # Ensure song exists in songs table with provider attribution
+        conn_check = get_connection()
+        cursor_check = conn_check.cursor()
+        cursor_check.execute("SELECT id FROM songs WHERE id = ?", (song_id,))
+        exists = cursor_check.fetchone() is not None
+        conn_check.close()
+        if not exists:
+            # Fallback values if needed
+            song_payload = dict(song_data)
+            song_payload["id"] = song_id
+            add_song(song_payload)
+
     conn = get_connection()
     cursor = conn.cursor()
     
