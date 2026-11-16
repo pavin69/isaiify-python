@@ -55,6 +55,36 @@ app.get("/api/search", async (req, res) => {
 
     if (!spotifyRes.ok) {
       const errMsg = data.error?.message || data.error || rawText;
+      console.warn(`[Spotify API] Status ${spotifyRes.status} (${errMsg}). Falling back to Free To Use catalog.`);
+
+      // Fallback to FreeToUse API when Spotify account lacks Premium or encounters errors
+      try {
+        const ftuUrl = query
+          ? `https://api.freetouse.com/v3/music/tracks/search?query=${encodeURIComponent(query)}&limit=10`
+          : `https://api.freetouse.com/v3/music/tracks/all?limit=10`;
+        const ftuRes = await fetch(ftuUrl);
+        const ftuData = await ftuRes.json();
+        const ftuItems = (ftuData.data || []).map(t => ({
+          id: `ftu_${t.id}`,
+          name: t.title || "Untitled Track",
+          artists: [{ name: (t.artists && t.artists[0]?.name) || "Free To Use Artist" }],
+          album: {
+            images: [
+              { url: t.thumbnails?.lg || t.thumbnails?.md || "" },
+              { url: t.thumbnails?.md || "" },
+              { url: t.thumbnails?.sm || t.thumbnails?.md || "" }
+            ]
+          },
+          audio_url: t.files?.mp3 || ""
+        }));
+
+        if (ftuItems.length > 0) {
+          return res.json(ftuItems);
+        }
+      } catch (ftuErr) {
+        console.warn("[FreeToUse Fallback] Error:", ftuErr.message);
+      }
+
       return res.status(spotifyRes.status).json({
         error: `Spotify API Error (${spotifyRes.status})`,
         details: errMsg
