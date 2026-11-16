@@ -45,7 +45,22 @@ app.get("/api/search", async (req, res) => {
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    const data = await spotifyRes.json();
+    const rawText = await spotifyRes.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = { error: { message: rawText } };
+    }
+
+    if (!spotifyRes.ok) {
+      const errMsg = data.error?.message || data.error || rawText;
+      return res.status(spotifyRes.status).json({
+        error: `Spotify API Error (${spotifyRes.status})`,
+        details: errMsg
+      });
+    }
+
     res.json(data.tracks?.items || []);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch tracks from Spotify", details: err.message });

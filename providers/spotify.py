@@ -189,21 +189,20 @@ class SpotifyProvider(MusicProvider):
         - Must be HTTPS in production.
         - Must use http://127.0.0.1 for local dev (never http://localhost or wildcards).
         """
+        if host:
+            clean_host = host.replace("localhost", "127.0.0.1")
+            if clean_host.startswith("127.0.0.1"):
+                return f"http://{clean_host}/api/spotify/callback"
+            else:
+                return f"https://{clean_host}/api/spotify/callback"
+
         env_uri = os.environ.get("SPOTIFY_REDIRECT_URI", "").strip()
         if env_uri:
             # Enforce Spotify redirect URI rule: replace localhost with 127.0.0.1
             cleaned = env_uri.replace("localhost", "127.0.0.1")
             return cleaned
 
-        if not host:
-            host = "127.0.0.1:5000"
-
-        # Never use http://localhost
-        clean_host = host.replace("localhost", "127.0.0.1")
-        if clean_host.startswith("127.0.0.1"):
-            return f"http://{clean_host}/api/spotify/callback"
-        else:
-            return f"https://{clean_host}/api/spotify/callback"
+        return "http://127.0.0.1:5000/api/spotify/callback"
 
     def create_authorization_url(self, user_id: str, host: Optional[str] = None) -> Dict[str, Any]:
         """
