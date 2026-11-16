@@ -69,9 +69,15 @@ app.get("/api/search", async (req, res) => {
 
 // 3. Client configuration for PKCE authorization flow
 app.get("/api/config", (req, res) => {
+  const host = req.get("host") || "";
+  const isLocal = host.startsWith("127.0.0.1") || host.startsWith("localhost");
+  const protocol = isLocal ? "http" : (req.headers["x-forwarded-proto"] || "https");
+  const cleanHost = host.replace("localhost", "127.0.0.1");
+  const redirectUri = `${protocol}://${cleanHost}/playlists.html`;
+
   res.json({
     clientId: process.env.SPOTIFY_CLIENT_ID || "",
-    redirectUri: "http://127.0.0.1:3000/playlists.html"
+    redirectUri: redirectUri
   });
 });
 

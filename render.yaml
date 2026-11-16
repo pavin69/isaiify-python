@@ -1,8 +1,29 @@
 services:
+  # 1. Main Isaiify Python Web Application
   - type: web
     name: isaiify
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     plan: free
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
 
+  # 2. Spotify Music Node.js Web Application
+  - type: web
+    name: spotify-music-app
+    env: node
+    rootDir: spotify-music-app
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false

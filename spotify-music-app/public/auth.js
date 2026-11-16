@@ -1,6 +1,12 @@
 let CLIENT_ID = "YOUR_SPOTIFY_CLIENT_ID";
-const REDIRECT_URI = "http://127.0.0.1:3000/playlists.html";
 const SCOPES = "playlist-read-private playlist-read-collaborative user-read-private";
+
+function getRedirectUri() {
+  const origin = window.location.origin;
+  // Spotify OpenAPI strictly requires 127.0.0.1 instead of localhost for local dev
+  const cleanOrigin = origin.replace("localhost", "127.0.0.1");
+  return `${cleanOrigin}/playlists.html`;
+}
 
 // Fetch client ID dynamically from server /api/config if not manually replaced
 async function getClientId() {
@@ -44,7 +50,7 @@ async function redirectToSpotifyLogin() {
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: getRedirectUri(),
     scope: SCOPES,
     code_challenge_method: "S256",
     code_challenge: challenge,
@@ -70,7 +76,7 @@ async function handleCallbackAndGetToken() {
       client_id: clientId,
       grant_type: "authorization_code",
       code: code,
-      redirect_uri: REDIRECT_URI,
+      redirect_uri: getRedirectUri(),
       code_verifier: verifier,
     }),
   });
