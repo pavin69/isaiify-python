@@ -541,7 +541,9 @@ function createSongCardHtml(song) {
 
     // Provider badge
     let providerBadgeHtml = '';
-    if (song.provider === 'jamendo') {
+    if (song.provider === 'freetouse') {
+        providerBadgeHtml = `<span class="provider-pill pill-freetouse pill-sm" title="Free To Use Royalty-Free Music"><i class="fa-solid fa-compact-disc"></i> Free To Use</span>`;
+    } else if (song.provider === 'jamendo') {
         providerBadgeHtml = `<span class="provider-pill pill-jamendo pill-sm" title="Creative Commons License"><i class="fa-brands fa-creative-commons"></i> Jamendo</span>`;
     } else if (song.provider === 'soundcloud') {
         providerBadgeHtml = `<span class="provider-pill pill-soundcloud pill-sm" title="SoundCloud Stream"><i class="fa-brands fa-soundcloud"></i> SoundCloud</span>`;
@@ -671,9 +673,12 @@ function createAlbumCardHtml(alb) {
 
 async function openAlbumView(albumId) {
     try {
-        const endpoint = albumId.startsWith("jamendo_alb_") ?
-            `/api/providers/jamendo/albums/${encodeURIComponent(albumId)}` :
-            `/api/albums/${encodeURIComponent(albumId)}`;
+        let endpoint = `/api/albums/${encodeURIComponent(albumId)}`;
+        if (albumId.startsWith("jamendo_alb_")) {
+            endpoint = `/api/providers/jamendo/albums/${encodeURIComponent(albumId)}`;
+        } else if (albumId.startsWith("freetouse_alb_")) {
+            endpoint = `/api/providers/freetouse/albums/${encodeURIComponent(albumId)}`;
+        }
         const res = await fetch(endpoint, { headers: authHeaders() });
         const data = await res.json();
         if (!data.success) {
@@ -1225,7 +1230,12 @@ async function loadTrack(index, autoPlay = true) {
     const providerBadge = document.getElementById("playerProviderBadge");
     const sourceLink = document.getElementById("playerSourceLink");
     if (providerBadge) {
-        if (track.provider === "jamendo") {
+        if (track.provider === "freetouse") {
+            providerBadge.style.display = "inline-flex";
+            providerBadge.className = "provider-pill pill-freetouse pill-sm";
+            providerBadge.innerHTML = '<i class="fa-solid fa-compact-disc"></i> Free To Use';
+            providerBadge.title = "Free To Use Royalty-Free Music";
+        } else if (track.provider === "jamendo") {
             providerBadge.style.display = "inline-flex";
             providerBadge.className = "provider-pill pill-jamendo pill-sm";
             providerBadge.innerHTML = '<i class="fa-brands fa-creative-commons"></i> Jamendo';
@@ -1729,9 +1739,11 @@ async function fetchProviderStatuses() {
 function updateSidebarProviderBadge() {
     const badge = document.getElementById("providersActiveBadge");
     if (!badge || !cachedProviderStatuses) return;
+    const ftuReady = cachedProviderStatuses.freetouse && cachedProviderStatuses.freetouse.configured;
     const jamReady = cachedProviderStatuses.jamendo && cachedProviderStatuses.jamendo.configured;
     const scReady = cachedProviderStatuses.soundcloud && cachedProviderStatuses.soundcloud.configured;
     let count = 0;
+    if (ftuReady) count++;
     if (jamReady) count++;
     if (scReady) count++;
     if (count > 0) {
@@ -1798,6 +1810,7 @@ async function openProvidersModal() {
         return;
     }
 
+    const ftu = statuses.freetouse || {};
     const jam = statuses.jamendo || {};
     const sc = statuses.soundcloud || {};
     const vault = statuses.isaiify || {};
@@ -1818,6 +1831,24 @@ async function openProvidersModal() {
                     <div><strong>Streaming:</strong> Allowed</div>
                     <div><strong>Offline Downloads:</strong> Allowed</div>
                     <div><strong>Catalog Source:</strong> Local Database & Server Storage</div>
+                </div>
+            </div>
+
+            <!-- Free To Use Music -->
+            <div class="provider-card active-card">
+                <div class="provider-card-header">
+                    <div class="provider-card-title">
+                        <i class="fa-solid fa-compact-disc" style="color:#A78BFA;"></i>
+                        <span>${ftu.display_name || "Free To Use Music"}</span>
+                    </div>
+                    <span class="provider-badge-status badge-ready">Connected</span>
+                </div>
+                <p class="provider-card-desc">Official Free To Use v3.0 REST API catalog (Human-made Lofi, Chill, and Ambient beats).</p>
+                <div class="provider-card-details">
+                    <div><strong>Streaming:</strong> Enabled (Open Access)</div>
+                    <div><strong>Offline Downloads:</strong> Allowed (Royalty-free with attribution)</div>
+                    <div><strong>API Endpoint:</strong> <code>https://api.freetouse.com/v3/music/tracks/search</code></div>
+                    <div><strong>Website:</strong> <a href="https://freetouse.com" target="_blank" rel="noopener noreferrer">freetouse.com</a></div>
                 </div>
             </div>
 

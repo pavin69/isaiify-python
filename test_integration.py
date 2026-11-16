@@ -11,6 +11,7 @@ from app import app
 from providers import provider_manager
 from providers.jamendo import JamendoProvider
 from providers.soundcloud import SoundCloudProvider
+from providers.freetouse import FreeToUseProvider
 
 class TestJamendoSoundCloudIntegration(unittest.TestCase):
 
@@ -22,8 +23,16 @@ class TestJamendoSoundCloudIntegration(unittest.TestCase):
         """Test provider status reporting and default unconfigured behavior."""
         statuses = provider_manager.get_provider_statuses()
         self.assertIn("isaiify", statuses)
+        self.assertIn("freetouse", statuses)
         self.assertIn("jamendo", statuses)
         self.assertIn("soundcloud", statuses)
+
+        # Free To Use status
+        ftu = statuses["freetouse"]
+        self.assertEqual(ftu["provider"], "freetouse")
+        self.assertTrue(ftu["configured"])
+        self.assertTrue(ftu["can_stream"])
+        self.assertTrue(ftu["can_download"])
 
         # Isaiify Vault
         self.assertTrue(statuses["isaiify"]["configured"])
@@ -206,6 +215,26 @@ class TestJamendoSoundCloudIntegration(unittest.TestCase):
         }
         norm_allowed = jam_provider._normalize_track(raw_allowed)
         self.assertEqual(norm_allowed["allow_download"], 1)
+
+    def test_07_freetouse_search_and_playback(self):
+        """Test Free To Use provider search, normalization, and track properties."""
+        ftu = FreeToUseProvider()
+        tracks = ftu.search_tracks("lofi", limit=3)
+        self.assertGreater(len(tracks), 0, "Free To Use should return tracks for 'lofi'")
+        first = tracks[0]
+        self.assertTrue(first["id"].startswith("freetouse_"))
+        self.assertTrue(first["audio_url"].startswith("http"))
+        self.assertTrue(first["image_url"].startswith("http"))
+        self.assertEqual(first["provider"], "freetouse")
+        self.assertEqual(first["allow_download"], 1)
+
+        # Test search endpoint via Flask client
+        res = self.client.get("/api/search?q=lofi&provider=freetouse")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertGreater(len(data["songs"]), 0)
+        self.assertEqual(data["songs"][0]["provider"], "freetouse")
 
 if __name__ == "__main__":
     unittest.main()

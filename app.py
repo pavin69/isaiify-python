@@ -144,6 +144,26 @@ def get_jamendo_album(album_id):
 
     return jsonify({"success": True, "album": album})
 
+@app.route("/api/providers/freetouse/albums/<album_id>", methods=["GET"])
+def get_freetouse_album(album_id):
+    """Retrieve Free To Use category/album details and tracklist."""
+    user_id = get_current_user_id()
+    album = provider_manager.get_album(album_id)
+    if not album:
+        return jsonify({"success": False, "error": "Free To Use album not found"}), 404
+
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT song_id FROM user_likes WHERE user_id = ?", (user_id,))
+    user_liked = {r["song_id"] for r in cursor.fetchall()}
+    conn.close()
+
+    for s in album.get("songs", []):
+        s["is_favorite"] = 1 if s.get("id") in user_liked else 0
+        s["artwork_url"] = s.get("image_url", "")
+
+    return jsonify({"success": True, "album": album})
+
 @app.route("/api/search", methods=["GET"])
 def search():
     q = request.args.get("q", "").strip()
@@ -194,8 +214,8 @@ def search():
         
     conn.close()
 
-    # 2. Query External Providers (Jamendo & SoundCloud)
-    if provider_filter in ("all", "jamendo", "soundcloud"):
+    # 2. Query External Providers (Free To Use, Jamendo, SoundCloud)
+    if provider_filter in ("all", "freetouse", "jamendo", "soundcloud"):
         external_tracks = provider_manager.search_tracks(q, provider_filter=provider_filter, limit=15)
         for t in external_tracks:
             t["is_favorite"] = 1 if t.get("id") in user_liked else 0

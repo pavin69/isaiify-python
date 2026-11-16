@@ -2274,6 +2274,12 @@ kbd {
     border: 1px solid rgba(16, 185, 129, 0.4);
 }
 
+.pill-freetouse {
+    background: rgba(139, 92, 246, 0.2);
+    color: #A78BFA;
+    border: 1px solid rgba(139, 92, 246, 0.4);
+}
+
 .pill-soundcloud {
     background: rgba(255, 85, 0, 0.2);
     color: #FF7733;
