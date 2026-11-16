@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import time
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "isaiify.db")
 
@@ -85,6 +86,26 @@ def init_db():
         song_duration REAL DEFAULT 0,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (song_id) REFERENCES songs (id)
+    );
+
+    CREATE TABLE IF NOT EXISTS spotify_auth (
+        user_id TEXT PRIMARY KEY,
+        access_token TEXT NOT NULL,
+        refresh_token TEXT,
+        token_type TEXT DEFAULT 'Bearer',
+        expires_at REAL NOT NULL,
+        scope TEXT,
+        spotify_user_id TEXT,
+        spotify_display_name TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS spotify_oauth_states (
+        state TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        code_verifier TEXT,
+        redirect_uri TEXT NOT NULL,
+        created_at REAL NOT NULL
     );
     """)
 
@@ -352,6 +373,72 @@ def get_recently_played(user_id, limit=8):
 
     conn.close()
     return songs
+
+# =============================================================================
+# SPOTIFY OAUTH & TOKEN STORAGE (Secure Server-Side Token Management)
+# =============================================================================
+
+def save_spotify_auth(user_id, access_token, refresh_token=None, expires_in=3600, scope="", spotify_user_id="", spotify_display_name=""):
+    """Securely store or update Spotify access & refresh tokens for a user."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    expires_at = time.time() + float(expires_in)
+    cursor.execute("""
+        INSERT INTO spotify_auth (user_id, access_token, refresh_token, expires_at, scope, spotify_user_id, spotify_display_name, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(user_id) DO UPDATE SET
+            access_token = excluded.access_token,
+            refresh_token = COALESCE(excluded.refresh_token, spotify_auth.refresh_token),
+            expires_at = excluded.expires_at,
+            scope = excluded.scope,
+            spotify_user_id = COALESCE(excluded.spotify_user_id, spotify_auth.spotify_user_id),
+            spotify_display_name = COALESCE(excluded.spotify_display_name, spotify_auth.spotify_display_name),
+            updated_at = CURRENT_TIMESTAMP
+    """, (user_id, access_token, refresh_token, expires_at, scope, spotify_user_id, spotify_display_name))
+    conn.commit()
+    conn.close()
+
+def get_spotify_auth(user_id):
+    """Retrieve stored Spotify tokens for user."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM spotify_auth WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def delete_spotify_auth(user_id):
+    """Remove stored Spotify tokens for user (e.g. on disconnect or refresh revocation)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM spotify_auth WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+def save_oauth_state(state, user_id, code_verifier, redirect_uri):
+    """Store CSRF state & PKCE code_verifier for OAuth callback verification."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    # Prune states older than 10 minutes
+    cursor.execute("DELETE FROM spotify_oauth_states WHERE created_at < ?", (time.time() - 600,))
+    cursor.execute("""
+        INSERT OR REPLACE INTO spotify_oauth_states (state, user_id, code_verifier, redirect_uri, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (state, user_id, code_verifier, redirect_uri, time.time()))
+    conn.commit()
+    conn.close()
+
+def get_and_consume_oauth_state(state):
+    """Retrieve and immediately consume OAuth state & PKCE code_verifier."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM spotify_oauth_states WHERE state = ?", (state,))
+    row = cursor.fetchone()
+    if row:
+        cursor.execute("DELETE FROM spotify_oauth_states WHERE state = ?", (state,))
+        conn.commit()
+    conn.close()
+    return dict(row) if row else None
 
 if __name__ == "__main__":
     init_db()

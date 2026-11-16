@@ -278,5 +278,64 @@ class TestJamendoSoundCloudIntegration(unittest.TestCase):
         self.assertEqual(first_sp["provider"], "spotify")
         self.assertEqual(first_sp["allow_download"], 0)
 
+    def test_09_spotify_openapi_and_auth_rules(self):
+        """Test compliance with Spotify OpenAPI, PKCE, minimal scopes, and redirect URI rules."""
+        sp = provider_manager.spotify
+
+        # 1. PKCE Generator (RFC 7636)
+        verifier, challenge = sp.generate_pkce_pair()
+        self.assertEqual(len(verifier), 64, "Code verifier must be 64 characters")
+        self.assertGreater(len(challenge), 40, "Code challenge must be a valid Base64URL string")
+        self.assertNotIn("=", challenge, "Code challenge must not have padding")
+
+        # 2. Redirect URI Rule: Never use localhost or wildcards, always HTTPS or 127.0.0.1
+        local_uri = sp.get_redirect_uri("localhost:5000")
+        self.assertNotIn("localhost", local_uri, "Redirect URI must never contain localhost")
+        self.assertIn("127.0.0.1:5000", local_uri, "Local redirect URI must use 127.0.0.1")
+        self.assertTrue(local_uri.startswith("http://127.0.0.1"), "Local redirect must use http://127.0.0.1")
+
+        prod_uri = sp.get_redirect_uri("isaiify-python.onrender.com")
+        self.assertTrue(prod_uri.startswith("https://"), "Production redirect URI must be HTTPS")
+        self.assertNotIn("*", prod_uri, "Redirect URI must never use wildcard")
+
+        # 3. Minimal Scopes Rule
+        self.assertEqual(sp.get_status()["scopes"], ["user-read-private", "user-read-email", "user-top-read"])
+
+        # 4. Authorization URL endpoint (GET /api/spotify/login)
+        login_res = self.client.get("/api/spotify/login", headers={"X-User-Id": "test_pkce_user"})
+        self.assertEqual(login_res.status_code, 200)
+        login_data = login_res.get_json()
+        self.assertTrue(login_data["success"])
+        self.assertIn("accounts.spotify.com/authorize", login_data["auth_url"])
+        self.assertIn("code_challenge_method=S256", login_data["auth_url"])
+        self.assertIn("response_type=code", login_data["auth_url"])
+        self.assertIn("state=", login_data["auth_url"])
+
+        # 5. Token Management & Storage (database save, get, delete)
+        test_uid = "test_listener_storage"
+        database.save_spotify_auth(
+            user_id=test_uid,
+            access_token="test_access_token_123",
+            refresh_token="test_refresh_token_456",
+            expires_in=3600,
+            scope="user-read-private user-top-read",
+            spotify_user_id="sp_test_user",
+            spotify_display_name="Test Spotify User"
+        )
+        stored = database.get_spotify_auth(test_uid)
+        self.assertIsNotNone(stored)
+        self.assertEqual(stored["access_token"], "test_access_token_123")
+        self.assertEqual(stored["refresh_token"], "test_refresh_token_456")
+        self.assertEqual(stored["spotify_user_id"], "sp_test_user")
+
+        # Clean up
+        database.delete_spotify_auth(test_uid)
+        self.assertIsNone(database.get_spotify_auth(test_uid))
+
+        # 6. Non-deprecated playlist items endpoint
+        pl_res = self.client.get("/api/providers/spotify/playlists/test_pl_123/items")
+        self.assertEqual(pl_res.status_code, 200)
+        self.assertTrue(pl_res.get_json()["success"])
+
 if __name__ == "__main__":
     unittest.main()

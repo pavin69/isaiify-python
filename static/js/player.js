@@ -79,6 +79,7 @@ const queueDrawer = document.getElementById("queueDrawer");
 
 // Initialize App on DOM Load
 document.addEventListener("DOMContentLoaded", async () => {
+    checkUrlAuthStatus();
     updateGreeting();
     initUserDisplay();
     setupNetworkListeners();
@@ -93,6 +94,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadRecentlyPlayed();
     setupAudioListeners();
 });
+
+function checkUrlAuthStatus() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("spotify_status") === "connected") {
+        const user = params.get("spotify_user") || "Spotify user";
+        showToast(`Spotify account connected successfully (@${user})!`);
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get("spotify_error")) {
+        const err = params.get("spotify_error");
+        showToast(`Spotify authorization notice: ${err}`);
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
 
 function initUserDisplay() {
     const uid = getUserId();
@@ -1891,18 +1905,29 @@ async function openProvidersModal() {
                 <div class="provider-card-header">
                     <div class="provider-card-title">
                         <i class="fa-brands fa-spotify" style="color:#1DB954;"></i>
-                        <span>${spot.display_name || "Spotify"}</span>
+                        <span>${spot.display_name || "Spotify Web API"}</span>
                     </div>
                     <span class="provider-badge-status ${spot.configured ? 'badge-ready' : 'badge-pending'}">
-                        ${spot.configured ? (spot.connected_user ? `Connected (@${spot.connected_user})` : 'Connected') : 'Awaiting Token'}
+                        ${spot.configured ? (spot.connected_user ? `Connected (@${spot.connected_user})` : 'Connected') : 'Awaiting Authorization'}
                     </span>
                 </div>
-                <p class="provider-card-desc">Official Spotify Web API catalog & user top tracks streaming.</p>
+                <p class="provider-card-desc">Official Spotify OpenAPI schema & user top tracks streaming.</p>
                 <div class="provider-card-details">
                     <div><strong>Connected User:</strong> ${spot.connected_user || "pavin"}</div>
-                    <div><strong>Streaming:</strong> Previews & Spotify Deep Links</div>
-                    <div><strong>Offline Downloads:</strong> <span style="color:#EF4444; font-weight:700;">Strictly Prohibited</span> (Spotify Terms forbid downloading or caching audio)</div>
+                    <div><strong>Streaming:</strong> Official Previews & Spotify Deep Links</div>
+                    <div><strong>Offline Downloads:</strong> <span style="color:#EF4444; font-weight:700;">Strictly Prohibited</span> (Spotify Terms strictly forbid downloading or caching audio)</div>
+                    <div><strong>OpenAPI Schema:</strong> <a href="${spot.openapi_schema || 'https://developer.spotify.com/reference/web-api/open-api-schema.yaml'}" target="_blank" rel="noopener noreferrer">open-api-schema.yaml</a></div>
                     <div><strong>Developer Portal:</strong> <a href="${spot.terms_url || 'https://developer.spotify.com'}" target="_blank" rel="noopener noreferrer">developer.spotify.com</a></div>
+                </div>
+                <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
+                    <a href="/api/spotify/login?redirect=1" class="btn-connect-spotify" style="display:inline-flex; align-items:center; gap:6px; padding:7px 14px; background:#1DB954; color:#041E15; font-weight:700; border-radius:18px; text-decoration:none; font-size:12px;">
+                        <i class="fa-brands fa-spotify"></i> ${spot.configured ? 'Authorize Account via PKCE' : 'Connect Account'}
+                    </a>
+                    ${spot.configured ? `
+                    <button onclick="disconnectSpotify()" style="padding:6px 12px; background:rgba(239,68,68,0.2); color:#EF4444; border:1px solid rgba(239,68,68,0.4); border-radius:14px; cursor:pointer; font-size:12px; font-weight:600;">
+                        <i class="fa-solid fa-link-slash"></i> Disconnect
+                    </button>
+                    ` : ''}
                 </div>
             </div>
 
@@ -2000,6 +2025,21 @@ async function openProvidersModal() {
             </div>
         </div>
     `;
+}
+
+async function disconnectSpotify() {
+    if (!confirm("Are you sure you want to disconnect your Spotify account?")) return;
+    try {
+        const res = await fetch("/api/spotify/disconnect", { method: "POST", headers: authHeaders() });
+        const data = await res.json();
+        if (data.success) {
+            showToast("Spotify account disconnected.");
+            await fetchProviderStatuses();
+            openProvidersModal();
+        }
+    } catch (e) {
+        showToast("Error disconnecting Spotify account.");
+    }
 }
 
 function closeProvidersModal(event) {

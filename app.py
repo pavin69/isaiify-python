@@ -3,7 +3,7 @@ import urllib.request
 import urllib.parse
 import json
 import html
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, redirect
 from werkzeug.utils import secure_filename
 from Crypto.Cipher import DES
 import base64
@@ -193,12 +193,70 @@ def get_spotify_album(album_id):
 
     return jsonify({"success": True, "album": album})
 
+# --- SPOTIFY OAUTH & OPENAPI SPEC ENDPOINTS ---
+
+@app.route("/api/spotify/login", methods=["GET"])
+def spotify_login():
+    """Initiates Spotify Authorization Code Flow with PKCE (RFC 7636)."""
+    user_id = get_current_user_id()
+    host = request.host
+    auth_info = provider_manager.spotify.create_authorization_url(user_id=user_id, host=host)
+
+    if request.args.get("redirect") == "1" or "text/html" in request.headers.get("Accept", ""):
+        return redirect(auth_info["auth_url"])
+
+    return jsonify({
+        "success": True,
+        "auth_url": auth_info["auth_url"],
+        "state": auth_info["state"],
+        "redirect_uri": auth_info["redirect_uri"],
+        "scopes": auth_info["scopes"]
+    })
+
+@app.route("/api/spotify/callback", methods=["GET"])
+def spotify_callback():
+    """OAuth redirect handler: exchanges authorization code for tokens."""
+    error = request.args.get("error")
+    if error:
+        return redirect(f"/?spotify_error={urllib.parse.quote(error)}")
+
+    code = request.args.get("code")
+    state = request.args.get("state")
+    if not code or not state:
+        return redirect("/?spotify_error=Missing+code+or+state")
+
+    res = provider_manager.spotify.exchange_code(code, state)
+    if res.get("success"):
+        sp_user = res.get("spotify_display_name") or "Listener"
+        return redirect(f"/?spotify_status=connected&spotify_user={urllib.parse.quote(sp_user)}")
+    else:
+        err_msg = res.get("error", "Failed to connect Spotify")
+        return redirect(f"/?spotify_error={urllib.parse.quote(err_msg)}")
+
+@app.route("/api/spotify/disconnect", methods=["POST"])
+def spotify_disconnect():
+    """Disconnects Spotify integration for the current user."""
+    user_id = get_current_user_id()
+    database.delete_spotify_auth(user_id)
+    return jsonify({
+        "success": True,
+        "message": "Spotify account disconnected successfully."
+    })
+
 @app.route("/api/spotify/top-tracks", methods=["GET"])
 def get_spotify_top_tracks():
-    """Retrieve user's top tracks via official Spotify Web API."""
+    """Retrieve user's top tracks via official Spotify Web API /v1/me/top/tracks."""
     user_id = get_current_user_id()
     limit = int(request.args.get("limit", 10))
-    top_tracks = provider_manager.spotify.get_top_tracks(limit=limit)
+    time_range = request.args.get("time_range", "long_term")
+    offset = int(request.args.get("offset", 0))
+
+    top_tracks = provider_manager.spotify.get_top_tracks(
+        user_id=user_id,
+        time_range=time_range,
+        limit=limit,
+        offset=offset
+    )
 
     conn = database.get_connection()
     cursor = conn.cursor()
@@ -211,18 +269,33 @@ def get_spotify_top_tracks():
 
     return jsonify({
         "success": True,
-        "user": provider_manager.spotify.get_me(),
+        "user": provider_manager.spotify.get_me(user_id=user_id),
         "top_tracks": top_tracks,
         "tracks": top_tracks
     })
 
 @app.route("/api/spotify/me", methods=["GET"])
 def get_spotify_me():
-    """Retrieve connected Spotify user profile."""
+    """Retrieve connected Spotify user profile via /v1/me."""
+    user_id = get_current_user_id()
     return jsonify({
         "success": True,
-        "user": provider_manager.spotify.get_me()
+        "user": provider_manager.spotify.get_me(user_id=user_id)
     })
+
+@app.route("/api/providers/spotify/playlists/<playlist_id>/items", methods=["GET"])
+def get_spotify_playlist_items(playlist_id):
+    """Retrieve playlist items using non-deprecated /v1/playlists/{id}/items."""
+    user_id = get_current_user_id()
+    limit = int(request.args.get("limit", 20))
+    offset = int(request.args.get("offset", 0))
+    songs = provider_manager.spotify.get_playlist_items(
+        playlist_id=playlist_id,
+        limit=limit,
+        offset=offset,
+        user_id=user_id
+    )
+    return jsonify({"success": True, "songs": songs})
 
 @app.route("/api/search", methods=["GET"])
 def search():
