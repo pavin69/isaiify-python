@@ -108,6 +108,15 @@ def get_quick_access():
     user_liked = {r["song_id"] for r in cursor.fetchall()}
     conn.close()
 
+    if not songs:
+        top_res = provider_manager.spotify.get_top_tracks(limit=6)
+        if top_res:
+            songs = top_res[:6]
+        else:
+            ftu_res = provider_manager.freetouse.search_tracks("lofi", limit=6)
+            if ftu_res:
+                songs = ftu_res[:6]
+
     for s in songs:
         if user_liked:
             s["is_favorite"] = 1 if s["id"] in user_liked else 0
@@ -164,6 +173,57 @@ def get_freetouse_album(album_id):
 
     return jsonify({"success": True, "album": album})
 
+@app.route("/api/providers/spotify/albums/<album_id>", methods=["GET"])
+def get_spotify_album(album_id):
+    """Retrieve Spotify album details and tracklist."""
+    user_id = get_current_user_id()
+    album = provider_manager.get_album(album_id)
+    if not album:
+        return jsonify({"success": False, "error": "Spotify album not found"}), 404
+
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT song_id FROM user_likes WHERE user_id = ?", (user_id,))
+    user_liked = {r["song_id"] for r in cursor.fetchall()}
+    conn.close()
+
+    for s in album.get("songs", []):
+        s["is_favorite"] = 1 if s.get("id") in user_liked else 0
+        s["artwork_url"] = s.get("image_url", "")
+
+    return jsonify({"success": True, "album": album})
+
+@app.route("/api/spotify/top-tracks", methods=["GET"])
+def get_spotify_top_tracks():
+    """Retrieve user's top tracks via official Spotify Web API."""
+    user_id = get_current_user_id()
+    limit = int(request.args.get("limit", 10))
+    top_tracks = provider_manager.spotify.get_top_tracks(limit=limit)
+
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT song_id FROM user_likes WHERE user_id = ?", (user_id,))
+    user_liked = {r["song_id"] for r in cursor.fetchall()}
+    conn.close()
+
+    for s in top_tracks:
+        s["is_favorite"] = 1 if s.get("id") in user_liked else 0
+
+    return jsonify({
+        "success": True,
+        "user": provider_manager.spotify.get_me(),
+        "top_tracks": top_tracks,
+        "tracks": top_tracks
+    })
+
+@app.route("/api/spotify/me", methods=["GET"])
+def get_spotify_me():
+    """Retrieve connected Spotify user profile."""
+    return jsonify({
+        "success": True,
+        "user": provider_manager.spotify.get_me()
+    })
+
 @app.route("/api/search", methods=["GET"])
 def search():
     q = request.args.get("q", "").strip()
@@ -214,8 +274,8 @@ def search():
         
     conn.close()
 
-    # 2. Query External Providers (Free To Use, Jamendo, SoundCloud)
-    if provider_filter in ("all", "freetouse", "jamendo", "soundcloud"):
+    # 2. Query External Providers (Spotify, Free To Use, Jamendo, SoundCloud)
+    if provider_filter in ("all", "spotify", "freetouse", "jamendo", "soundcloud"):
         external_tracks = provider_manager.search_tracks(q, provider_filter=provider_filter, limit=15)
         for t in external_tracks:
             t["is_favorite"] = 1 if t.get("id") in user_liked else 0

@@ -88,6 +88,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await fetchProviderStatuses();
     await initOfflineDB();
     await loadAllData();
+    await loadSpotifyTopTracks();
     await loadRecommendations();
     await loadRecentlyPlayed();
     setupAudioListeners();
@@ -490,6 +491,34 @@ async function loadRecommendations() {
     }
 }
 
+async function loadSpotifyTopTracks() {
+    try {
+        const res = await fetch("/api/spotify/top-tracks", { headers: authHeaders() });
+        const data = await res.json();
+        const sec = document.getElementById("spotifySection");
+        const carousel = document.getElementById("spotifyCarousel");
+        const subtitle = document.getElementById("spotifySubtitle");
+
+        const tracks = data.top_tracks || data.tracks || [];
+        if (data.success && tracks.length > 0 && carousel) {
+            if (sec) sec.style.display = "block";
+            if (subtitle && data.user) {
+                subtitle.innerText = `Top listening picks & chart hits for @${data.user.display_name || 'pavin'}`;
+            }
+            carousel.innerHTML = tracks.map(s => createSongCardHtml(s)).join("");
+            updateDownloadButtonsInDOM();
+
+            // If local songs catalog is empty, populate currentPlaylist from Spotify tracks so player is ready
+            if (allSongs.length === 0 && currentPlaylist.length === 0) {
+                currentPlaylist = [...tracks];
+                loadTrack(0, false);
+            }
+        }
+    } catch (e) {
+        console.warn("Spotify top tracks note:", e);
+    }
+}
+
 function updateLikedCountBadge() {
     const badge = document.getElementById("likedCountBadge");
     if (!badge) return;
@@ -519,14 +548,19 @@ function renderQuickAccess(songs) {
 function renderCarousels(songs) {
     const tamilCarousel = document.getElementById("tamilCarousel");
     const englishCarousel = document.getElementById("englishCarousel");
+    const tamilSec = document.getElementById("tamilSection");
+    const englishSec = document.getElementById("englishSection");
 
     const tamilSongs = songs.filter(s => s.language === "TAMIL");
     const englishSongs = songs.filter(s => s.language === "ENGLISH");
 
-    if (tamilCarousel) {
+    if (tamilSec) tamilSec.style.display = tamilSongs.length > 0 ? "block" : "none";
+    if (englishSec) englishSec.style.display = englishSongs.length > 0 ? "block" : "none";
+
+    if (tamilCarousel && tamilSongs.length > 0) {
         tamilCarousel.innerHTML = tamilSongs.map(s => createSongCardHtml(s)).join("");
     }
-    if (englishCarousel) {
+    if (englishCarousel && englishSongs.length > 0) {
         englishCarousel.innerHTML = englishSongs.map(s => createSongCardHtml(s)).join("");
     }
     updateDownloadButtonsInDOM();
@@ -547,6 +581,8 @@ function createSongCardHtml(song) {
         providerBadgeHtml = `<span class="provider-pill pill-jamendo pill-sm" title="Creative Commons License"><i class="fa-brands fa-creative-commons"></i> Jamendo</span>`;
     } else if (song.provider === 'soundcloud') {
         providerBadgeHtml = `<span class="provider-pill pill-soundcloud pill-sm" title="SoundCloud Stream"><i class="fa-brands fa-soundcloud"></i> SoundCloud</span>`;
+    } else if (song.provider === 'spotify') {
+        providerBadgeHtml = `<span class="provider-pill pill-spotify pill-sm" title="Spotify Web API Track"><i class="fa-brands fa-spotify"></i> Spotify</span>`;
     }
 
     // Source link-back icon
@@ -557,12 +593,16 @@ function createSongCardHtml(song) {
 
     // Download button according to licensing & provider policy
     let downloadBtnHtml = '';
-    if (song.provider === 'soundcloud') {
+    if (song.provider === 'soundcloud' || song.provider === 'spotify') {
+        const termsName = song.provider === 'spotify' ? 'Spotify Developer Terms' : 'SoundCloud terms';
+        const termsMsg = song.provider === 'spotify'
+            ? 'Spotify Developer Terms strictly prohibit downloading, caching or offline saving of audio tracks.'
+            : 'SoundCloud terms strictly prohibit offline downloading or caching.';
         downloadBtnHtml = `
             <button class="card-action-btn dl-restricted" 
-                    title="Offline downloads disabled (SoundCloud terms prohibit downloading or caching)" 
-                    onclick="handleRestrictedDownload('SoundCloud terms strictly prohibit offline downloading or caching.', event)"
-                    aria-label="Downloads disabled for SoundCloud">
+                    title="Offline downloads disabled (${termsName} prohibit downloading or caching)" 
+                    onclick="handleRestrictedDownload('${termsMsg}', event)"
+                    aria-label="Downloads disabled for ${song.provider}">
                 <i class="fa-solid fa-ban"></i>
             </button>
         `;
@@ -649,6 +689,8 @@ function renderAllArtistsView(artists) {
 
 // Render Featured Albums
 function renderAlbums(albums) {
+    const sec = document.getElementById("albumsSection");
+    if (sec) sec.style.display = (albums && albums.length > 0) ? "block" : "none";
     const carousel = document.getElementById("albumsCarousel");
     if (!carousel) return;
     carousel.innerHTML = albums.map(alb => createAlbumCardHtml(alb)).join("");
@@ -678,6 +720,8 @@ async function openAlbumView(albumId) {
             endpoint = `/api/providers/jamendo/albums/${encodeURIComponent(albumId)}`;
         } else if (albumId.startsWith("freetouse_alb_")) {
             endpoint = `/api/providers/freetouse/albums/${encodeURIComponent(albumId)}`;
+        } else if (albumId.startsWith("spotify_alb_")) {
+            endpoint = `/api/providers/spotify/albums/${encodeURIComponent(albumId)}`;
         }
         const res = await fetch(endpoint, { headers: authHeaders() });
         const data = await res.json();
@@ -1245,6 +1289,11 @@ async function loadTrack(index, autoPlay = true) {
             providerBadge.className = "provider-pill pill-soundcloud pill-sm";
             providerBadge.innerHTML = '<i class="fa-brands fa-soundcloud"></i> SoundCloud';
             providerBadge.title = "Official SoundCloud Stream";
+        } else if (track.provider === "spotify") {
+            providerBadge.style.display = "inline-flex";
+            providerBadge.className = "provider-pill pill-spotify pill-sm";
+            providerBadge.innerHTML = '<i class="fa-brands fa-spotify"></i> Spotify';
+            providerBadge.title = "Official Spotify Web API Track";
         } else {
             providerBadge.style.display = "none";
         }
@@ -1261,10 +1310,17 @@ async function loadTrack(index, autoPlay = true) {
 
     // Update player download button based on provider permissions
     if (playerDownloadBtn) {
-        if (track.provider === "soundcloud") {
+        if (track.provider === "soundcloud" || track.provider === "spotify") {
+            const isSpot = track.provider === "spotify";
             playerDownloadBtn.style.opacity = "0.4";
-            playerDownloadBtn.title = "Offline downloads disabled (SoundCloud terms prohibit downloading or caching)";
-            playerDownloadBtn.onclick = () => showToast("SoundCloud terms forbid offline downloading or caching");
+            playerDownloadBtn.title = isSpot
+                ? "Offline downloads disabled (Spotify Terms prohibit downloading or caching)"
+                : "Offline downloads disabled (SoundCloud terms prohibit downloading or caching)";
+            playerDownloadBtn.onclick = () => showToast(
+                isSpot
+                    ? "Spotify Terms strictly prohibit downloading or caching audio"
+                    : "SoundCloud terms forbid offline downloading or caching"
+            );
         } else if (track.allow_download === 0 || (track.provider === "jamendo" && track.allow_download !== 1)) {
             playerDownloadBtn.style.opacity = "0.4";
             playerDownloadBtn.title = "Streaming only (Artist has not enabled CC download permission)";
@@ -1739,10 +1795,12 @@ async function fetchProviderStatuses() {
 function updateSidebarProviderBadge() {
     const badge = document.getElementById("providersActiveBadge");
     if (!badge || !cachedProviderStatuses) return;
+    const spotReady = cachedProviderStatuses.spotify && cachedProviderStatuses.spotify.configured;
     const ftuReady = cachedProviderStatuses.freetouse && cachedProviderStatuses.freetouse.configured;
     const jamReady = cachedProviderStatuses.jamendo && cachedProviderStatuses.jamendo.configured;
     const scReady = cachedProviderStatuses.soundcloud && cachedProviderStatuses.soundcloud.configured;
     let count = 0;
+    if (spotReady) count++;
     if (ftuReady) count++;
     if (jamReady) count++;
     if (scReady) count++;
@@ -1785,6 +1843,16 @@ function selectSearchProvider(provider) {
                 </div>
                 <button class="btn-alert-action" onclick="openProvidersModal()">Setup Instructions</button>
             `;
+        } else if (provider === "spotify" && !cachedProviderStatuses.spotify.configured) {
+            alertBox.style.display = "flex";
+            alertBox.className = "provider-status-alert alert-warning";
+            alertBox.innerHTML = `
+                <div class="alert-content">
+                    <strong><i class="fa-brands fa-spotify"></i> Spotify Authorization Token Required:</strong>
+                    <span>Set <code>SPOTIFY_TOKEN</code> in server environment or .env file to enable Spotify Web API.</span>
+                </div>
+                <button class="btn-alert-action" onclick="openProvidersModal()">Setup Instructions</button>
+            `;
         } else {
             alertBox.style.display = "none";
         }
@@ -1814,9 +1882,30 @@ async function openProvidersModal() {
     const jam = statuses.jamendo || {};
     const sc = statuses.soundcloud || {};
     const vault = statuses.isaiify || {};
+    const spot = statuses.spotify || {};
 
     body.innerHTML = `
         <div class="provider-modal-grid">
+            <!-- Spotify Web API -->
+            <div class="provider-card ${spot.configured ? 'active-card' : 'unconfigured-card'}">
+                <div class="provider-card-header">
+                    <div class="provider-card-title">
+                        <i class="fa-brands fa-spotify" style="color:#1DB954;"></i>
+                        <span>${spot.display_name || "Spotify"}</span>
+                    </div>
+                    <span class="provider-badge-status ${spot.configured ? 'badge-ready' : 'badge-pending'}">
+                        ${spot.configured ? (spot.connected_user ? `Connected (@${spot.connected_user})` : 'Connected') : 'Awaiting Token'}
+                    </span>
+                </div>
+                <p class="provider-card-desc">Official Spotify Web API catalog & user top tracks streaming.</p>
+                <div class="provider-card-details">
+                    <div><strong>Connected User:</strong> ${spot.connected_user || "pavin"}</div>
+                    <div><strong>Streaming:</strong> Previews & Spotify Deep Links</div>
+                    <div><strong>Offline Downloads:</strong> <span style="color:#EF4444; font-weight:700;">Strictly Prohibited</span> (Spotify Terms forbid downloading or caching audio)</div>
+                    <div><strong>Developer Portal:</strong> <a href="${spot.terms_url || 'https://developer.spotify.com'}" target="_blank" rel="noopener noreferrer">developer.spotify.com</a></div>
+                </div>
+            </div>
+
             <!-- Isaiify Vault -->
             <div class="provider-card active-card">
                 <div class="provider-card-header">

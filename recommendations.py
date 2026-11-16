@@ -52,33 +52,34 @@ def get_recommendations_for_user(user_id=None, limit=8):
     Returns:
         list[dict]: Ranked list of song dicts with an added 'recommendation_reason'.
     """
-    conn = database.get_connection()
-    cursor = conn.cursor()
-
-    # If no user_id or empty, return diverse cold-start fallback
     if not user_id:
-        return get_cold_start_fallback(cursor, limit)
+        return get_cold_start_fallback(limit=limit)
 
-    # 1. Fetch user's liked song IDs
-    cursor.execute("SELECT song_id FROM user_likes WHERE user_id = ?", (user_id,))
-    liked_song_ids = {row["song_id"] for row in cursor.fetchall()}
+    conn = database.get_connection()
+    try:
+        cursor = conn.cursor()
+        # 1. Fetch user's liked song IDs
+        cursor.execute("SELECT song_id FROM user_likes WHERE user_id = ?", (user_id,))
+        liked_song_ids = {row["song_id"] for row in cursor.fetchall()}
 
-    # 2. Fetch completed play song IDs
-    cursor.execute("""
-        SELECT song_id, COUNT(*) as count 
-        FROM listening_events 
-        WHERE user_id = ? AND event_type = 'completed_play'
-        GROUP BY song_id
-    """, (user_id,))
-    completed_plays = {row["song_id"]: row["count"] for row in cursor.fetchall()}
+        # 2. Fetch completed play song IDs
+        cursor.execute("""
+            SELECT song_id, COUNT(*) as count 
+            FROM listening_events 
+            WHERE user_id = ? AND event_type = 'completed_play'
+            GROUP BY song_id
+        """, (user_id,))
+        completed_plays = {row["song_id"]: row["count"] for row in cursor.fetchall()}
+
+        # 3. Fetch all catalog songs to build profile & candidate set
+        cursor.execute("SELECT * FROM songs")
+        all_songs = [dict(r) for r in cursor.fetchall()]
+    finally:
+        conn.close()
 
     # Cold start check: if user has no likes and no completed plays, fallback
     if not liked_song_ids and not completed_plays:
-        return get_cold_start_fallback(cursor, limit)
-
-    # 3. Fetch all catalog songs to build profile & candidate set
-    cursor.execute("SELECT * FROM songs")
-    all_songs = [dict(r) for r in cursor.fetchall()]
+        return get_cold_start_fallback(limit=limit)
 
     # Map songs by ID
     song_map = {s["id"]: s for s in all_songs}
@@ -166,11 +167,10 @@ def get_recommendations_for_user(user_id=None, limit=8):
 
     # Sort candidates by score descending
     candidates.sort(key=lambda x: x["recommendation_score"], reverse=True)
-    conn.close()
 
     # If candidates list is empty (e.g. user liked everything), fallback
     if not candidates:
-        return get_cold_start_fallback(cursor, limit)
+        return get_cold_start_fallback(limit=limit)
 
     return candidates[:limit]
 
@@ -178,22 +178,37 @@ def get_cold_start_fallback(cursor=None, limit=8):
     """
     Curated fallback for new listeners or guests without listening history.
     Picks top streamed songs with language and category diversity.
+    Falls back to connected Spotify or FreeToUse catalog if local library is empty.
     """
-    should_close = False
-    if cursor is None:
-        conn = database.get_connection()
-        cursor = conn.cursor()
-        should_close = True
-
-    cursor.execute("""
-    SELECT * FROM songs 
-    ORDER BY play_count DESC 
-    LIMIT ?
-    """, (limit * 2,))
-    rows = [dict(r) for r in cursor.fetchall()]
-
-    if should_close:
+    conn = database.get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT * FROM songs 
+            ORDER BY play_count DESC 
+            LIMIT ?
+        """, (limit * 2,))
+        rows = [dict(r) for r in cur.fetchall()]
+    finally:
         conn.close()
+
+    if not rows:
+        # Fallback to connected online providers (Spotify / FreeToUse)
+        try:
+            from providers.manager import provider_manager
+            spot_tracks = provider_manager.spotify.get_top_tracks(limit=limit)
+            if spot_tracks:
+                for t in spot_tracks:
+                    t["recommendation_reason"] = "Spotify Top Chart Pick"
+                return spot_tracks[:limit]
+            ftu_tracks = provider_manager.freetouse.search_tracks("lofi", limit=limit)
+            if ftu_tracks:
+                for t in ftu_tracks:
+                    t["recommendation_reason"] = "Chill Lofi Recommendation"
+                return ftu_tracks[:limit]
+        except Exception:
+            pass
+        return []
 
     # Interleave Tamil and English for broad discovery
     tamil = [r for r in rows if r.get("language") == "TAMIL"]

@@ -118,109 +118,16 @@ def init_db():
     print("Database initialized & migrated successfully at:", DB_PATH)
 
 def upgrade_and_seed_catalog(cursor):
-    # Standard Albums
-    albums = [
-        ("alb_01", "Leo (Original Soundtrack)", "Anirudh Ravichander", "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=80", 2023, "TAMIL", 2, "Action Mass"),
-        ("alb_02", "After Hours", "The Weeknd", "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&auto=format&fit=crop&q=80", 2020, "ENGLISH", 2, "Synthwave Pop"),
-        ("alb_03", "Jailer (Original Soundtrack)", "Anirudh Ravichander", "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=80", 2023, "TAMIL", 2, "Mass Commercial"),
-        ("alb_04", "Lover", "Taylor Swift", "https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=500&auto=format&fit=crop&q=80", 2019, "ENGLISH", 2, "Electropop"),
-        ("alb_05", "Starboy", "The Weeknd", "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=500&auto=format&fit=crop&q=80", 2016, "ENGLISH", 1, "R&B Pop"),
-        ("alb_06", "÷ (Divide)", "Ed Sheeran", "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&auto=format&fit=crop&q=80", 2017, "ENGLISH", 1, "Acoustic Pop"),
-        ("alb_07", "Harry's House", "Harry Styles", "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=500&auto=format&fit=crop&q=80", 2022, "ENGLISH", 1, "Indie Pop"),
-        ("alb_08", "Vendhu Thanindhathu Kaadu", "A.R. Rahman", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80", 2022, "TAMIL", 1, "Soulful Melody"),
-        ("alb_09", "Beast", "Anirudh Ravichander", "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&auto=format&fit=crop&q=80", 2022, "TAMIL", 1, "Dance Party"),
-        ("alb_10", "Bachelor", "Dhibu Ninan Thomas", "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=500&auto=format&fit=crop&q=80", 2021, "TAMIL", 1, "Romantic Melody"),
-    ]
+    """Clean out dummy/placeholder tunes and albums; maintain verified artists & user library."""
+    # Delete unnecessary placeholder/dummy wav songs and mock albums
+    cursor.execute("DELETE FROM playlist_songs WHERE playlist_id = 'pl_01'")
+    cursor.execute("DELETE FROM playlists WHERE id = 'pl_01'")
+    cursor.execute("DELETE FROM songs WHERE audio_url LIKE '/static/audio/%.wav'")
+    cursor.execute("DELETE FROM songs WHERE id LIKE '%test%'")
+    cursor.execute("DELETE FROM user_likes WHERE song_id LIKE '%test%'")
+    cursor.execute("DELETE FROM albums WHERE id LIKE 'alb_%'")
 
-    for alb in albums:
-        cursor.execute("""
-        INSERT INTO albums (id, title, artist, cover_art_url, release_year, language, song_count, genre)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-            title=excluded.title,
-            artist=excluded.artist,
-            cover_art_url=excluded.cover_art_url,
-            release_year=excluded.release_year,
-            language=excluded.language,
-            song_count=excluded.song_count,
-            genre=excluded.genre
-        """, alb)
-
-    # Complete songs catalog with album_id, tags, allow_download
-    songs_data = [
-        # id, title, artist, album, album_id, language, category, duration_seconds, audio_url, image_url, is_favorite, play_count, tags, allow_download
-        ("tam_01", "Naa Ready", "Anirudh Ravichander, Thalapathy Vijay", "Leo (Original Soundtrack)", "alb_01", "TAMIL", "Mass Hits", 248,
-         "/static/audio/naa_ready.wav", "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=80", 1, 1420,
-         "energetic, dance, viral, kuthu, mass, fast", 1),
-        ("tam_06", "Badass", "Anirudh Ravichander", "Leo (Original Soundtrack)", "alb_01", "TAMIL", "Mass Hits", 225,
-         "/static/audio/badass.wav", "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=80", 0, 1150,
-         "action, dark, swagger, mass, anirudh", 1),
-        ("tam_02", "Hukum - Thalaivar Alappara", "Anirudh Ravichander", "Jailer (Original Soundtrack)", "alb_03", "TAMIL", "Mass Hits", 207,
-         "/static/audio/hukum.wav", "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=80", 0, 1180,
-         "superstar, anthem, hype, mass, energy", 1),
-        ("tam_07", "Kaavaalaa", "Anirudh Ravichander, Shilpa Rao", "Jailer (Original Soundtrack)", "alb_03", "TAMIL", "Party", 195,
-         "/static/audio/kavalaa.wav", "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=80", 0, 1310,
-         "dance, party, viral, catchy, afrobeat", 1),
-        ("tam_03", "Marakkuma Nenjam", "A.R. Rahman", "Vendhu Thanindhathu Kaadu", "alb_08", "TAMIL", "Melody", 255,
-         "/static/audio/marakkuma_nenjam.wav", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80", 1, 980,
-         "soulful, acoustic, ar rahman, emotional, slow", 1),
-        ("tam_04", "Arabic Kuthu", "Anirudh Ravichander, Jonita Gandhi", "Beast", "alb_09", "TAMIL", "Party", 280,
-         "/static/audio/arabic_kuthu.wav", "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&auto=format&fit=crop&q=80", 0, 890,
-         "party, arabic beat, fast, fun, viral", 1),
-        ("tam_05", "Adiye", "Dhibu Ninan Thomas, Kapil Kapilan", "Bachelor", "alb_10", "TAMIL", "Romantic", 243,
-         "/static/audio/adiye.wav", "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=500&auto=format&fit=crop&q=80", 0, 670,
-         "romantic, love, jazz, soulful, gentle", 1),
-
-        # English Songs
-        ("eng_01", "Blinding Lights", "The Weeknd", "After Hours", "alb_02", "ENGLISH", "Synthwave Pop", 200,
-         "/static/audio/blinding_lights.wav", "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&auto=format&fit=crop&q=80", 1, 3500,
-         "80s synth, driving, retro, neon, fast pop", 1),
-        ("eng_06", "Save Your Tears", "The Weeknd", "After Hours", "alb_02", "ENGLISH", "Synthwave Pop", 215,
-         "/static/audio/save_your_tears.wav", "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&auto=format&fit=crop&q=80", 0, 2650,
-         "synthpop, melodic, radio hit, smooth, emotions", 1),
-        ("eng_02", "Starboy", "The Weeknd, Daft Punk", "Starboy", "alb_05", "ENGLISH", "Pop", 230,
-         "/static/audio/starboy.wav", "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=500&auto=format&fit=crop&q=80", 0, 2900,
-         "electronic, dark pop, daft punk, bass, swagger", 1),
-        ("eng_03", "Shape of You", "Ed Sheeran", "÷ (Divide)", "alb_06", "ENGLISH", "Pop", 233,
-         "/static/audio/shape_of_you.wav", "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&auto=format&fit=crop&q=80", 0, 3100,
-         "dancehall pop, acoustic, catchy, chartbuster", 1),
-        ("eng_04", "As It Was", "Harry Styles", "Harry's House", "alb_07", "ENGLISH", "Indie Pop", 167,
-         "/static/audio/as_it_was.wav", "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=500&auto=format&fit=crop&q=80", 1, 2400,
-         "indie, upbeat, nostalgic, bright, feel good", 1),
-        ("eng_05", "Cruel Summer", "Taylor Swift", "Lover", "alb_04", "ENGLISH", "Pop", 178,
-         "/static/audio/cruel_summer.wav", "https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=500&auto=format&fit=crop&q=80", 0, 2750,
-         "synthpop, bridge anthem, summer, infectious", 1),
-        ("eng_07", "Lover", "Taylor Swift", "Lover", "alb_04", "ENGLISH", "Pop", 221,
-         "/static/audio/lover.wav", "https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=500&auto=format&fit=crop&q=80", 0, 2100,
-         "romantic, acoustic waltz, intimate, warm, gentle", 1),
-    ]
-
-    for song in songs_data:
-        cursor.execute("""
-        INSERT INTO songs (id, title, artist, album, album_id, language, category, duration_seconds, audio_url, image_url, is_favorite, play_count, tags, allow_download)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-            title=excluded.title,
-            artist=excluded.artist,
-            album=excluded.album,
-            album_id=excluded.album_id,
-            language=excluded.language,
-            category=excluded.category,
-            duration_seconds=excluded.duration_seconds,
-            audio_url=excluded.audio_url,
-            image_url=excluded.image_url,
-            tags=excluded.tags,
-            allow_download=excluded.allow_download
-        """, song)
-
-    # Sync song_count on albums
-    cursor.execute("""
-    UPDATE albums SET song_count = (
-        SELECT COUNT(*) FROM songs WHERE songs.album_id = albums.id
-    )
-    """)
-
-    # Artists
+    # Verified Artists Directory
     artists = [
         ("art_01", "Anirudh Ravichander", "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80", "18.4M monthly listeners", "TAMIL", "Leading music sensation of modern Indian cinema."),
         ("art_02", "A.R. Rahman", "https://images.unsplash.com/photo-1520523839898-50712213388b?w=500&auto=format&fit=crop&q=80", "24.1M monthly listeners", "TAMIL", "Oscar-winning legend, the Mozart of Madras."),
@@ -234,11 +141,6 @@ def upgrade_and_seed_catalog(cursor):
     cursor.executemany("""
     INSERT OR REPLACE INTO artists VALUES (?, ?, ?, ?, ?, ?)
     """, artists)
-
-    # Initial Playlist
-    cursor.execute("INSERT OR IGNORE INTO playlists VALUES ('pl_01', 'Tamil & English Favorites', 'Best handpicked tracks by Isaiify', CURRENT_TIMESTAMP)")
-    for sid in ['tam_01', 'eng_01', 'tam_02', 'eng_06', 'tam_07']:
-        cursor.execute("INSERT OR IGNORE INTO playlist_songs VALUES ('pl_01', ?)", (sid,))
 
 # Helper query functions for app & admin workflow
 def get_album_with_songs(album_id):

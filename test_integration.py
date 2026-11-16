@@ -236,5 +236,47 @@ class TestJamendoSoundCloudIntegration(unittest.TestCase):
         self.assertGreater(len(data["songs"]), 0)
         self.assertEqual(data["songs"][0]["provider"], "freetouse")
 
+    def test_08_spotify_integration(self):
+        """Test Spotify Web API integration, token authentication, and endpoints."""
+        # 1. Provider status
+        statuses = provider_manager.get_provider_statuses()
+        self.assertIn("spotify", statuses)
+        sp_status = statuses["spotify"]
+        self.assertTrue(sp_status["configured"])
+        self.assertTrue(sp_status["can_stream"])
+        self.assertFalse(sp_status["can_download"])
+        self.assertIn("pavin", sp_status["status"])
+
+        # 2. GET /api/spotify/me
+        me_res = self.client.get("/api/spotify/me")
+        self.assertEqual(me_res.status_code, 200)
+        me_data = me_res.get_json()
+        self.assertTrue(me_data["success"])
+        self.assertEqual(me_data["user"]["id"], "316ftwyy4es7x7oolqy6oeptajlu")
+        self.assertEqual(me_data["user"]["display_name"], "pavin")
+
+        # 3. GET /api/spotify/top-tracks
+        top_res = self.client.get("/api/spotify/top-tracks")
+        self.assertEqual(top_res.status_code, 200)
+        top_data = top_res.get_json()
+        self.assertTrue(top_data["success"])
+        self.assertIn("tracks", top_data)
+        self.assertGreater(len(top_data["tracks"]), 0)
+        first_top = top_data["tracks"][0]
+        self.assertTrue(first_top["id"].startswith("spotify_"))
+        self.assertEqual(first_top["provider"], "spotify")
+        self.assertEqual(first_top["allow_download"], 0)
+        self.assertTrue(first_top["source_url"].startswith("https://open.spotify.com"))
+
+        # 4. Search Spotify
+        search_res = self.client.get("/api/search?q=ready&provider=spotify")
+        self.assertEqual(search_res.status_code, 200)
+        search_data = search_res.get_json()
+        self.assertTrue(search_data["success"])
+        self.assertGreater(len(search_data["songs"]), 0)
+        first_sp = search_data["songs"][0]
+        self.assertEqual(first_sp["provider"], "spotify")
+        self.assertEqual(first_sp["allow_download"], 0)
+
 if __name__ == "__main__":
     unittest.main()

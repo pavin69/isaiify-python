@@ -220,6 +220,20 @@
                     </div>
                 </section>
 
+                <!-- SPOTIFY PICKS & TOP TRACKS (Official Spotify Web API) -->
+                <section class="content-section" id="spotifySection">
+                    <div class="section-header">
+                        <div>
+                            <h2><i class="fa-brands fa-spotify" style="color: #1DB954; margin-right: 6px;"></i> Spotify Picks & Hits</h2>
+                            <p class="section-desc" id="spotifySubtitle">Top tracks & trending hits streamed via official Spotify Web API</p>
+                        </div>
+                        <button class="btn-see-all" onclick="selectSearchProvider('spotify'); switchView('search');">Explore Spotify</button>
+                    </div>
+                    <div class="cards-carousel" id="spotifyCarousel">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </section>
+
                 <!-- 5. TRENDING TAMIL HITS -->
                 <section class="content-section" id="tamilSection">
                     <div class="section-header">
@@ -290,6 +304,9 @@
                         <span class="provider-filter-label"><i class="fa-solid fa-filter"></i> Provider:</span>
                         <button class="provider-chip active" data-provider="all" onclick="selectSearchProvider('all')">
                             <i class="fa-solid fa-layer-group"></i> All Sources
+                        </button>
+                        <button class="provider-chip" data-provider="spotify" onclick="selectSearchProvider('spotify')">
+                            <i class="fa-brands fa-spotify" style="color: #1DB954;"></i> Spotify
                         </button>
                         <button class="provider-chip" data-provider="isaiify" onclick="selectSearchProvider('isaiify')">
                             <i class="fa-solid fa-vault"></i> Isaiify Vault
